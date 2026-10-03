@@ -49,3 +49,4 @@ export * from "./coinbase-history.js";
 export * from "./data-quality.js";
 export * from "./crypto-research-runner.js";
 export * from "./research-store.js";
+export * from "./paper-portfolio-store.js";
