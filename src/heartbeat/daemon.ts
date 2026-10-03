@@ -74,10 +74,13 @@ export function createHeartbeatDaemon(
   // Build task map from BUILTIN_TASKS
   const taskMap = new Map<string, HeartbeatTaskFn>();
   for (const [name, fn] of Object.entries(BUILTIN_TASKS)) {
-    if (config.runtimeProfile !== "commerce" || name === "health_check") taskMap.set(name, fn);
+    if (config.runtimeProfile === "legacy" || !config.runtimeProfile || name === "health_check") taskMap.set(name, fn);
   }
 
   if (config.runtimeProfile === "commerce") taskMap.set("commerce_catalogue_review", commerceCatalogueReview);
+
+  // Trader runtime intentionally receives only explicitly registered trader tasks.
+  // Live execution is not registered here; paper trading wiring is injected by the trader runtime.
 
   // Seed heartbeat_schedule from config entries if not already present
   for (const entry of heartbeatConfig.entries) {
