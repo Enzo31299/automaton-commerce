@@ -6,7 +6,25 @@ Build with Node 22 and `pnpm exec tsc`. Supply secrets through the host's secret
 manager/environment, never committed JSON or chat:
 
 * `SHOPIFY_SHOP_DOMAIN`: exact lowercase `name.myshopify.com`, no scheme/path.
-* `SHOPIFY_ACCESS_TOKEN`: Admin API token for that shop with `read_products`.
+* Choose exactly one authentication mode: `SHOPIFY_ACCESS_TOKEN` for an existing
+  Admin API token, or `SHOPIFY_CLIENT_ID` plus `SHOPIFY_CLIENT_SECRET` for a
+  Dev Dashboard app installed on a store in the same organization.
+
+The client credentials provider exchanges secrets only at the validated shop's
+`/admin/oauth/access_token` endpoint, rejects redirects, uses a 15-second timeout,
+and requires the returned scopes to be exactly `read_products`. It retains the
+token only in process memory and renews it 60 seconds before the returned expiry.
+Concurrent callers share an exchange; failed exchanges clear cached credentials
+and expose only a sanitized error. No secret, token or token response is logged
+or written to SQLite. Existing static tokens do not receive automatic renewal.
+See [Shopify client credentials grant](https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant).
+
+On 4 October 2026, Automaton Commerce V1 was created and installed on the target
+store through Shopify Admin with `read_products`. Installation was verified in
+Admin's installed applications list. This verifies installation only: no actual
+server token exchange or standalone catalogue read has yet been validated.
+Shopify's consent screen also disclosed store owner contact details. No product,
+order or payment mutation was authorized or performed.
 
 The connector pins Admin GraphQL API `2026-07` and exposes only one fixed query,
 no mutations. It rejects redirects, mismatched store identity, GraphQL errors,
