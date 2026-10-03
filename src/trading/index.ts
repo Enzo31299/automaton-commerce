@@ -39,3 +39,5 @@ export * from "./strategy-comparison.js";
 export * from "./research-report.js";
 export * from "./paper-trading-gate.js";
 export * from "./paper-session.js";
+export * from "./paper-loop.js";
+export * from "./trading-journal.js";
