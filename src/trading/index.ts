@@ -50,3 +50,6 @@ export * from "./data-quality.js";
 export * from "./crypto-research-runner.js";
 export * from "./research-store.js";
 export * from "./paper-portfolio-store.js";
+export * from "./heartbeat-task.js";
+export * from "./heartbeat-config.js";
+export * from "./candle-processing-guard.js";
