@@ -56,6 +56,15 @@ describe("createTokenCounter", () => {
     expect(counter.countBatch(["a", "b"])).toHaveLength(2);
   });
 
+  it("bounds large repetitive and Unicode inputs without retaining them", () => {
+    const counter = createTokenCounter();
+    const repeated = "x".repeat(500_000);
+    const unicode = "界😀".repeat(2_000);
+    expect(counter.countTokens(repeated)).toBe(500_000);
+    expect(counter.countTokens(unicode)).toBe(Buffer.byteLength(unicode, "utf8"));
+    expect(counter.cache.size).toBe(0);
+  }, 2_000);
+
   it("countTokens uses cache for repeated input", () => {
     const counter = createTokenCounter();
 

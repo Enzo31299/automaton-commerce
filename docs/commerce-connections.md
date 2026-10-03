@@ -73,7 +73,35 @@ Before declaring deployment ready, verify the standalone command on a Shopify
 development store with a real read-only token, compare every variant across
 pagination, inspect local persisted reports, and confirm the store has no
 changes. Exercise an invalid token, timeout and missing costs: all must fail.
-Establish supported AutoDS access and Minea entitlement, implement their adapters,
-and validate each in test mode. Complete autonomous wallet-free Agent Loop,
+Establish supported AutoDS access, implement its adapter or a documented,
+validated data exchange, and validate it in test mode. Minea is optional product
+research; Claude is not required to deploy Commerce V1. Leaving either service
+unconfigured must not be interpreted as validated evidence or a product match.
+Complete autonomous wallet-free Agent Loop,
 Memory/Policy/Heartbeat startup and the full CI suite without timeout. These are
 release blockers; this document does not mark any of them complete.
+
+## Deployment work resumed — 4 October 2026 (Europe/Paris)
+
+Development has resumed with Shopify and AutoDS as the required integrations.
+Claude and Minea are deferred. The earlier pause in `reprise-2026-10-03.md` is
+historical; its remaining technical blockers still apply until verified.
+
+The supplied spreadsheet contains 39 variant mappings across three products.
+Matching those IDs and SKUs to the supplied text is an input consistency check,
+not a fresh Shopify/AutoDS read. It contains no complete landed costs or verified
+delivery/stock/compliance evidence. Keep this private input outside the public
+repository, and do not turn missing costs into zero or mark the suppliers verified.
+
+Deployment still needs a host with persistent SQLite storage and Node 22, a
+read-only Shopify token configured in that host's secret manager, and supported
+AutoDS credentials or an agreed data exchange. Browser and ChatGPT connector
+sessions do not supply runtime credentials. No host has been provisioned, no
+secret has been committed, and no boutique deployment has been performed.
+
+The context token counter now bypasses exact BPE encoding for text longer than
+4096 UTF-16 code units, using the UTF-8 byte count as a conservative upper bound.
+This avoids blocking on long repeated input and excludes that input from the
+token cache. Large histories can therefore be compressed sooner; this changes
+budget precision, not the stored history or commerce product data. Small inputs
+continue to use the existing tokenizer.
