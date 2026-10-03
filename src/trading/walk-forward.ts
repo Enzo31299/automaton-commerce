@@ -31,9 +31,9 @@ export function walkForward(
     const testStart = trainEnd;
     const testEnd = testStart + testSize;
     const training = candles.slice(trainStart, trainEnd);
-    const testing = candles.slice(testStart, testEnd);
+    const evaluationSeries = candles.slice(trainStart, testEnd);
     const strategy = strategyFactory(training);
-    const metrics = backtest(testing, strategy, config);
+    const metrics = backtest(evaluationSeries, strategy, config, { tradeStartIndex: trainSize });
     windows.push({ trainStart, trainEnd, testStart, testEnd, metrics });
   }
 
