@@ -15,7 +15,7 @@ function context() {
 it('filters crypto, replication, shell and installed tools from commerce while preserving legacy', () => {
   const tools = createBuiltinTools('test');
   const selected = selectRuntimeTools(tools, createTestConfig({ runtimeProfile: 'commerce' }));
-  expect(selected.filter(t => t.category === 'commerce')).toHaveLength(5);
+  expect(selected.filter(t => t.category === 'commerce')).toHaveLength(6);
   for (const name of ['exec', 'topup_credits', 'transfer_credits', 'spawn_child', 'check_usdc_balance', 'fund_child']) expect(selected.some(t => t.name === name)).toBe(false);
   expect(selected.some(t => t.name === 'remember_fact')).toBe(true);
   expect(selectRuntimeTools(tools, createTestConfig())).toBe(tools);

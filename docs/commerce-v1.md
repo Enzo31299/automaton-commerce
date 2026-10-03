@@ -14,6 +14,26 @@ This is an analysis and local-draft release, not a connected shop operator.
 | Margin | `commerce_margin_analyse` | Contribution after explicit costs |
 | Stock | `commerce_stock_analyse` | Reorder point and stock coverage |
 | Sourcing | `commerce_sourcing_analyse` | Eligible offers ranked by contribution then lead time |
+| Selection | `commerce_selection_analyse` | Recommendations combining costs, supplier eligibility and dated Minea evidence |
+
+Selection accepts `candidates` (maximum 100), each with a complete `product`,
+`offers` and optional `minea`: `{sku, sourceUrl, observedAt,
+productMatchVerified, activeDays}`. The source must be an HTTPS `app.minea.com`
+URL without credentials, query or fragment. Timestamp must be UTC ISO format.
+Missing evidence, an unverified SKU/product match, observations older than seven
+days or in the future, no active ad signal, a nonpositive current contribution or
+no eligible supplier excludes the candidate. Eligible candidates sort by current
+contribution, then ad activity duration, then SKU. These are simple review
+priorities, not predictions of revenue or profit. No live Minea fetching is built
+into this tool; it uses supplied observations and records selection reports in
+SQLite through the existing policy-controlled tool executor.
+
+On 3 October, authenticated Minea access showed a KLIP hair-clip advertisement
+active for 15 days. This is a category research lead only: it has not been
+verified as the same product as any Shopify SKU or AutoDS offer. Advertiser-wide
+ad counts must not be treated as product sales, and Minea signals never substitute
+for supplier traceability, compliance, stock or complete costs. No shop changes
+were made from this observation.
 
 Upsert accepts `{ "product": ... }` using the product in
 `examples/commerce-product.json`. Analysis tools accept `{ "sku": "ROLLER-1" }`.
@@ -36,6 +56,33 @@ verification must be false. Missing stock, non-positive contribution, currency
 mismatch or absent verification excludes an offer. No supplier is contacted.
 
 ## Persistence and scheduling
+
+### Wallet-free local analysis startup
+
+Use Node 22 and install dependencies with the pinned pnpm version. Build the root
+package with `pnpm exec tsc`. Create `batch.json` containing
+`{"products": [<complete product from examples/commerce-product.json>],
+"offersBySku": {"ROLLER-1": []}}`, replacing the placeholder with the JSON object.
+Then run:
+
+```sh
+node dist/commerce/run.js batch.json ./commerce-state.db
+```
+
+This entrypoint validates the complete batch, runs Catalogue, Margin, Stock and
+Sourcing, and atomically persists drafts and three analysis reports per SKU in
+the existing SQLite schema. It prints a JSON report and exits. Errors exit with
+code 1; duplicate SKUs, invalid products and offers for unknown SKUs fail before
+draft writes. Missing supplier offers produce no sourcing recommendation.
+Use a dedicated database file for evaluation; repeated runs upsert drafts and
+append reports. Inputs and reports can contain business-sensitive costs: keep
+them private and out of Git.
+
+It imports no wallet/provisioning path and makes no network or shop calls. It is
+a deterministic batch runner, not the autonomous Agent Loop. Existing Policy
+Engine, Memory and durable Heartbeat are preserved in the main runtime; this
+runner does not start them or expose tool execution. Full autonomous commerce
+startup and live connector integration remain pending.
 
 `commerce_products` and `commerce_reports` are additive namespaced tables in the
 existing database. They do not replace upstream schemas or memory. Analyses

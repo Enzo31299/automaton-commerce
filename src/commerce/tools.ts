@@ -1,6 +1,7 @@
 import type { AutomatonTool } from '../types.js';
 import { marginAgent, stockAgent, sourcingAgent } from './agents.js';
 import { CommerceStore } from './store.js';
+import { selectionAgent } from './selection.js';
 
 const moneyFields = ['salePriceCents', 'supplierCostCents', 'shippingCostCents', 'paymentFixedCents', 'taxReserveCents', 'returnReserveCents', 'advertisingCostCents'];
 const productProperties = {
@@ -23,6 +24,20 @@ const offerProperties = {
 
 export function createCommerceTools(): AutomatonTool[] {
   return [
+    {
+      name: 'commerce_selection_analyse', category: 'commerce', riskLevel: 'safe',
+      description: 'Compare explicit product costs and supplier offers with dated Minea ad evidence. Recommendation only; no live connector or shop writes. Product matches and supplier verification are operator-supplied.',
+      parameters: { type: 'object', properties: { candidates: { type: 'array', maxItems: 100, items: { type: 'object', properties: {
+        product: { type: 'object', properties: productProperties, required: Object.keys(productProperties) },
+        offers: { type: 'array', maxItems: 100, items: { type: 'object', properties: offerProperties, required: Object.keys(offerProperties) } },
+        minea: { type: 'object', properties: { sku: { type: 'string' }, sourceUrl: { type: 'string' }, observedAt: { type: 'string' }, productMatchVerified: { type: 'boolean' }, activeDays: { type: 'integer', minimum: 0 } }, required: ['sku','sourceUrl','observedAt','productMatchVerified','activeDays'] },
+      }, required: ['product','offers'] } } }, required: ['candidates'] },
+      execute: async (args, ctx) => {
+        const report = selectionAgent(args.candidates);
+        ctx.db.runTransaction(() => { const store = new CommerceStore(ctx.db); for (const candidate of report.candidates) store.report('selection', candidate.sku, candidate); });
+        return JSON.stringify(report);
+      },
+    },
     {
       name: 'commerce_catalogue_upsert', category: 'commerce', riskLevel: 'caution',
       description: 'Catalogue Agent: validate and save a local draft product. Does not publish to a store. All costs must be supplied explicitly in minor currency units.',
