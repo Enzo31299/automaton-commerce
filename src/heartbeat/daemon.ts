@@ -41,6 +41,7 @@ export interface HeartbeatDaemonOptions {
   conway: ConwayClient;
   social?: SocialClientInterface;
   onWakeRequest?: (reason: string) => void;
+  traderPaperTask?: HeartbeatTaskFn;
 }
 
 export interface HeartbeatDaemon {
@@ -59,7 +60,7 @@ export interface HeartbeatDaemon {
 export function createHeartbeatDaemon(
   options: HeartbeatDaemonOptions,
 ): HeartbeatDaemon {
-  const { identity, config, heartbeatConfig, db, rawDb, conway, social, onWakeRequest } = options;
+  const { identity, config, heartbeatConfig, db, rawDb, conway, social, onWakeRequest, traderPaperTask } = options;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let running = false;
 
@@ -79,8 +80,11 @@ export function createHeartbeatDaemon(
 
   if (config.runtimeProfile === "commerce") taskMap.set("commerce_catalogue_review", commerceCatalogueReview);
 
-  // Trader runtime intentionally receives only explicitly registered trader tasks.
-  // Live execution is not registered here; paper trading wiring is injected by the trader runtime.
+  // Trader runtime receives only explicitly injected paper tasks.
+  // No live execution adapter is registered by the heartbeat daemon.
+  if (config.runtimeProfile === "trader" && traderPaperTask) {
+    taskMap.set("trader_paper_cycle", traderPaperTask);
+  }
 
   // Seed heartbeat_schedule from config entries if not already present
   for (const entry of heartbeatConfig.entries) {
