@@ -96,6 +96,7 @@ export class DurableScheduler {
         this.config,
         this.legacyContext.config.runtimeProfile === "commerce" ? undefined : this.legacyContext.identity.address,
         this.legacyContext.identity.chainType,
+        this.legacyContext.config.runtimeProfile,
       );
 
       // Get tasks that are due
