@@ -16,10 +16,13 @@ export interface BacktestMetrics {
   losingTrades: number;
 }
 
+export interface BacktestEvaluationRange { tradeStartIndex?: number; }
+
 export function backtest(
   candles: readonly Candle[],
   strategy: Strategy,
   config: BacktestConfig,
+  evaluation: BacktestEvaluationRange = {},
 ): BacktestMetrics {
   let cash = config.initialCapital;
   let quantity = 0;
@@ -29,10 +32,13 @@ export function backtest(
   let trades = 0;
   let winningTrades = 0;
   let losingTrades = 0;
+  const tradeStartIndex = evaluation.tradeStartIndex ?? 0;
+  if (tradeStartIndex < 0 || tradeStartIndex > candles.length) throw new Error("Invalid tradeStartIndex");
 
   for (let index = 0; index < candles.length; index += 1) {
     const candle = candles[index];
     const signal = strategy.signal(candles.slice(0, index + 1));
+    if (index < tradeStartIndex) continue;
 
     if (signal === "buy" && quantity === 0) {
       const budget = cash * config.allocationFraction;
