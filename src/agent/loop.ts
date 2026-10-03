@@ -462,7 +462,7 @@ export async function runAgentLoop(
                 log(config, `[AUTO-TOPUP] Bought $${topupResult.amountUsd} credits from USDC mid-loop`);
                 // Re-fetch financial state after topup so the rest of
                 // the turn sees the updated balance.
-                financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm", config.runtimeProfile === "commerce");
+                financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm", false);
               }
             } catch (err: any) {
               logger.warn(`Inline auto-topup failed: ${err.message}`);

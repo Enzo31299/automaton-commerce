@@ -75,6 +75,34 @@ need explicit policy-controlled integrations.
 
 ## Validation
 
+### Connected-account inspection — 3 October 2026
+
+Read-only inspection succeeded through the Shopify connector and an authenticated
+AutoDS browser session for the same store. Shopify returned 29 products; only
+the first 10 products and the connector's limited variant samples were inspected.
+AutoDS displayed 28 tracked products plus 1 untracked product. This is account
+access evidence, not deployment validation or a complete product reconciliation.
+Several AutoDS buy prices were USD while sell prices were EUR. Its available
+variation counts are not stock quantities. Shopify inventory is not evidence of
+supplier availability. No products, orders, payments or supplier settings changed.
+
+`src/commerce/import.ts` provides an offline variant import boundary for tests.
+It takes `{id, sku, price}` from Shopify and a complete explicit Product input
+with supplier stock, operating costs, category, currency and demand assumptions.
+It overrides SKU and sale price from the variant and validates the result.
+Money strings must have at most two decimal places; this V1 contract supports
+only two-decimal amounts. Choose the currency from the verified store response.
+Never pass USD supplier costs into an EUR product without a separately verified
+conversion and its source/date. Missing inputs fail; no zero-cost defaults or
+Shopify inventory substitution are made. This module performs no network calls,
+database writes or shop changes and is not yet wired into the Agent Loop.
+
+Test this boundary with `pnpm exec vitest run src/__tests__/commerce-import.test.ts
+--pool=forks`. Live Shopify API credentials, a documented supported AutoDS
+data interface, complete variant pagination and end-to-end dry-run integration
+still need validation before deployment. Browser login does not provide runtime
+credentials for a deployed process; do not copy browser cookies into the agent.
+
 Use Node 20 or 22 (the existing CI matrix) and the pinned pnpm version:
 
 ```sh
