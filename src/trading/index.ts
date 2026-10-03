@@ -28,3 +28,4 @@ export * from "./execution.js";
 
 export * from "./strategy.js";
 export * from "./backtest.js";
+export * from "./walk-forward.js";
