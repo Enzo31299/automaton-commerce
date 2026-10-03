@@ -14,6 +14,12 @@ describe("paper portfolio persistence", () => {
     expect(store.load()).toMatchObject({ version: 1, savedAt: "2026-01-01T00:00:00.000Z", state });
   });
 
+  it("rejects inconsistent position counts", () => {
+    const bad = { version: 1, savedAt: "2026-01-01T00:00:00.000Z", state: { initialEquity: 150, equity: 150, cash: 100, realizedPnl: 0, dailyPnl: 0, openPositions: 0, trades: 1, blockedTrades: 0, positions: { "BTC-USD": { symbol: "BTC-USD", quantity: 0.5, averageEntryPrice: 100 } } } };
+    const store = new PaperPortfolioStore({ getKV: () => JSON.stringify(bad), setKV: () => {} });
+    expect(() => store.load()).toThrow(/Inconsistent/);
+  });
+
   it("rejects corrupt persisted state", () => {
     const store = new PaperPortfolioStore({ getKV: () => JSON.stringify({ version: 1, state: { cash: "bad" } }), setKV: () => {} });
     expect(() => store.load()).toThrow(/Corrupt/);
