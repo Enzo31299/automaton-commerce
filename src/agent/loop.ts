@@ -376,7 +376,9 @@ export async function runAgentLoop(
   db.setAgentState("running");
   onStateChange?.("running");
 
-  log(config, `[WAKE UP] ${config.name} is alive. Credits: $${(financial.creditsCents / 100).toFixed(2)}`);
+  log(config, config.runtimeProfile === "commerce"
+    ? `[COMMERCE START] ${config.name}: local policy and inference budgets; no Conway funding.`
+    : `[WAKE UP] ${config.name} is alive. Credits: $${(financial.creditsCents / 100).toFixed(2)}`);
 
   // ─── The Loop ──────────────────────────────────────────────
 
@@ -432,7 +434,10 @@ export async function runAgentLoop(
       // Check survival tier
       // api_unreachable: creditsCents === -1 means API failed with no cache.
       // Do NOT kill the agent; continue in low-compute mode and retry next tick.
-      if (financial.creditsCents === -1) {
+      if (config.runtimeProfile === "commerce") {
+        // Commerce uses the inference budget tracker, never Conway funding.
+        inference.setLowComputeMode(false);
+      } else if (financial.creditsCents === -1) {
         log(config, "[API_UNREACHABLE] Balance API unreachable, continuing in low-compute mode.");
         inference.setLowComputeMode(true);
       } else {
@@ -442,7 +447,7 @@ export async function runAgentLoop(
         // available, buy credits NOW — before attempting inference.
         // This prevents the agent from dying mid-loop while waiting for
         // the heartbeat to fire. Uses a 60s cooldown to avoid hammering.
-        if (config.runtimeProfile !== "commerce" && (tier === "critical" || tier === "low_compute") && financial.usdcBalance >= 5) {
+        if ((tier === "critical" || tier === "low_compute") && financial.usdcBalance >= 5) {
           const INLINE_TOPUP_COOLDOWN_MS = 60_000;
           const lastInlineTopup = db.getKV("last_inline_topup_attempt");
           const cooldownExpired = !lastInlineTopup ||
@@ -597,7 +602,7 @@ export async function runAgentLoop(
       pendingInput = undefined;
 
       // ── Inference Call (via router when available) ──
-      const survivalTier = getSurvivalTier(financial.creditsCents);
+      const survivalTier = config.runtimeProfile === "commerce" ? "normal" : getSurvivalTier(financial.creditsCents);
       log(config, `[THINK] Routing inference (tier: ${survivalTier}, model: ${inference.getDefaultModel()})...`);
 
       const inferenceTools = toolsToInferenceFormat(tools);
@@ -609,6 +614,8 @@ export async function runAgentLoop(
           sessionId: db.getKV("session_id") || "default",
           turnId: ulid(),
           tools: inferenceTools,
+          model: config.runtimeProfile === "commerce" ? config.inferenceModel : undefined,
+          maxTokens: config.runtimeProfile === "commerce" ? config.maxTokensPerTurn : undefined,
         },
         (msgs, opts) => inference.chat(msgs, { ...opts, tools: inferenceTools }),
       );
@@ -951,6 +958,9 @@ async function getFinancialState(
   chainType?: string,
   commerce = false,
 ): Promise<FinancialState> {
+  if (commerce) {
+    return { creditsCents: 0, usdcBalance: 0, lastChecked: new Date().toISOString() };
+  }
   let creditsCents = _lastKnownCredits;
   let usdcBalance = commerce ? 0 : _lastKnownUsdc;
 

@@ -77,8 +77,9 @@ Establish supported AutoDS access, implement its adapter or a documented,
 validated data exchange, and validate it in test mode. Minea is optional product
 research; Claude is not required to deploy Commerce V1. Leaving either service
 unconfigured must not be interpreted as validated evidence or a product match.
-Complete autonomous wallet-free Agent Loop,
-Memory/Policy/Heartbeat startup and the full CI suite without timeout. These are
+The autonomous local rules startup is documented in [commerce-runtime.md](commerce-runtime.md).
+Validate the full CI suite without timeout for the exact release commit. Live
+shop and supplier validation and the hosted deployment remain
 release blockers; this document does not mark any of them complete.
 
 ## Deployment work resumed — 4 October 2026 (Europe/Paris)
@@ -98,6 +99,9 @@ read-only Shopify token configured in that host's secret manager, and supported
 AutoDS credentials or an agreed data exchange. Browser and ChatGPT connector
 sessions do not supply runtime credentials. No host has been provisioned, no
 secret has been committed, and no boutique deployment has been performed.
+
+The wallet-free Agent Loop/Policy/Memory/Heartbeat entrypoint now exists as a
+local fixed-rules runtime; it does not refresh Shopify or AutoDS automatically.
 
 The context token counter now bypasses exact BPE encoding for text longer than
 4096 UTF-16 code units, using the UTF-8 byte count as a conservative upper bound.

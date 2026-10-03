@@ -46,7 +46,10 @@ export class InferenceRouter {
     const { messages, taskType, tier, sessionId, turnId, tools } = request;
 
     // 1. Select model from routing matrix
-    const model = this.selectModel(tier, taskType);
+    const requestedModel = request.model ? this.registry.get(request.model) : null;
+    const model = request.model
+      ? (requestedModel?.enabled ? requestedModel : null)
+      : this.selectModel(tier, taskType);
     if (!model) {
       return {
         content: "",

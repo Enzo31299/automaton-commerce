@@ -59,12 +59,18 @@ it('runs a commerce analysis in the preserved Agent Loop without chain reads or 
     taxReserveCents: 0, returnReserveCents: 0, advertisingCostCents: 0, stock: 10,
     dailySales: 1, leadTimeDays: 5, safetyStock: 2 });
   const inference = new MockInferenceClient([toolCallResponse([{ name: 'commerce_margin_analyse', arguments: { sku: 'LOOP' } }])]);
+  const credits = vi.spyOn(ctx.conway, 'getCreditsBalance').mockRejectedValue(new Error('Conway access forbidden'));
+  const { ModelRegistry } = await import('../inference/registry.js');
+  const registry = new ModelRegistry(ctx.db.raw); registry.initialize();
+  const model = registry.get('gpt-5.2')!;
+  registry.upsert({ ...model, modelId: 'mock-model', provider: 'other', costPer1kInput: 0, costPer1kOutput: 0 });
   try {
     await runAgentLoop({ ...ctx, config: { ...ctx.config, maxTurnsPerCycle: 1 }, inference });
     expect(ctx.db.getRecentTurns(1)[0].toolCalls[0].error).toBeUndefined();
     expect(store.get('LOOP').sku).toBe('LOOP');
     expect(ctx.db.raw.prepare('SELECT COUNT(*) AS count FROM commerce_reports').get()).toEqual({ count: 1 });
     expect(balance).not.toHaveBeenCalled();
+    expect(credits).not.toHaveBeenCalled();
     expect(orchestrator).not.toHaveBeenCalled();
   } finally { vi.restoreAllMocks(); }
 });

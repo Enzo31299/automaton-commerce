@@ -1181,6 +1181,8 @@ export interface ModelPreference {
 export type RoutingMatrix = Record<SurvivalTier, Record<InferenceTaskType, ModelPreference>>;
 
 export interface InferenceRequest {
+  /** Explicit registered model; missing/disabled models fail closed. */
+  model?: string;
   messages: ChatMessage[];
   taskType: InferenceTaskType;
   tier: SurvivalTier;

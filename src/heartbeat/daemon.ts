@@ -21,7 +21,7 @@ import type {
   HeartbeatLegacyContext,
   SocialClientInterface,
 } from "../types.js";
-import { commerceCatalogueReview } from "../commerce/heartbeat.js";
+import { commerceCatalogueReview, commerceHealthCheck } from "../commerce/heartbeat.js";
 import { BUILTIN_TASKS } from "./tasks.js";
 import { DurableScheduler } from "./scheduler.js";
 import { upsertHeartbeatSchedule } from "../state/database.js";
@@ -48,6 +48,7 @@ export interface HeartbeatDaemon {
   stop(): void;
   isRunning(): boolean;
   forceRun(taskName: string): Promise<void>;
+  drain?(): Promise<void>;
 }
 
 /**
@@ -62,6 +63,7 @@ export function createHeartbeatDaemon(
   const { identity, config, heartbeatConfig, db, rawDb, conway, social, onWakeRequest } = options;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let running = false;
+  let activeTick: Promise<void> | null = null;
 
   const legacyContext: HeartbeatLegacyContext = {
     identity,
@@ -78,6 +80,7 @@ export function createHeartbeatDaemon(
   }
 
   if (config.runtimeProfile === "commerce") taskMap.set("commerce_catalogue_review", commerceCatalogueReview);
+  if (config.runtimeProfile === "commerce") taskMap.set("health_check", commerceHealthCheck);
 
   // Seed heartbeat_schedule from config entries if not already present
   for (const entry of heartbeatConfig.entries) {
@@ -120,9 +123,12 @@ export function createHeartbeatDaemon(
     if (!running) return;
     timeoutId = setTimeout(async () => {
       try {
-        await scheduler.tick();
+        activeTick = scheduler.tick();
+        await activeTick;
       } catch (err: any) {
         logger.error("Tick failed", err instanceof Error ? err : undefined);
+      } finally {
+        activeTick = null;
       }
       scheduleTick();
     }, tickMs);
@@ -135,8 +141,12 @@ export function createHeartbeatDaemon(
     running = true;
 
     // Run first tick immediately
-    scheduler.tick().catch((err) => {
+    const initialTick = scheduler.tick();
+    activeTick = initialTick;
+    initialTick.catch((err) => {
       logger.error("First tick failed", err instanceof Error ? err : undefined);
+    }).finally(() => {
+      if (activeTick === initialTick) activeTick = null;
     });
 
     // Schedule subsequent ticks
@@ -159,10 +169,11 @@ export function createHeartbeatDaemon(
 
   const forceRun = async (taskName: string): Promise<void> => {
     const context = await import("./tick-context.js").then((m) =>
-      m.buildTickContext(rawDb, conway, heartbeatConfig, identity.address, identity.chainType),
+      m.buildTickContext(rawDb, conway, heartbeatConfig, identity.address, identity.chainType, config.runtimeProfile === "commerce"),
     );
     await scheduler.executeTask(taskName, context);
   };
 
-  return { start, stop, isRunning, forceRun };
+  const drain = async (): Promise<void> => { await activeTick?.catch(() => {}); };
+  return { start, stop, isRunning, forceRun, drain };
 }
