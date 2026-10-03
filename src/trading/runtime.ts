@@ -47,7 +47,7 @@ export function createPaperTraderRuntime(
     async tick(request: MarketRequest): Promise<void> {
       await runTraderHeartbeat(loop, journal, request, strategy.name);
       memory.observe(await journal.recent(config.journalLimit ?? 1000));
-      portfolioStore.save(session.snapshot() as any);
+      portfolioStore.save(session.snapshot());
       db.setKV("trader:last_tick", new Date().toISOString());
     },
     snapshot: () => session.snapshot(),
