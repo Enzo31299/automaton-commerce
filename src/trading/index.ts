@@ -47,3 +47,5 @@ export * from "./trading-memory.js";
 export * from "./runtime.js";
 export * from "./coinbase-history.js";
 export * from "./data-quality.js";
+export * from "./crypto-research-runner.js";
+export * from "./research-store.js";
