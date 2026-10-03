@@ -25,3 +25,6 @@ export class AutomatonTrader {
 export * from "./types.js";
 export * from "./risk-engine.js";
 export * from "./execution.js";
+
+export * from "./strategy.js";
+export * from "./backtest.js";
