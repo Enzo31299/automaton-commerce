@@ -1,0 +1,23 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { shopifyBatchSource } from '../commerce/shopify-runtime.js';
+import product from '../../examples/commerce-product.json';
+const dirs: string[] = [];
+afterEach(() => dirs.splice(0).forEach(path => rmSync(path, { recursive: true, force: true })));
+it('reads fresh Shopify prices every time while requiring explicit supplier evidence', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'shopify-source-')); dirs.push(dir);
+  const path = join(dir, 'evidence.json'); const id = 'gid://shopify/ProductVariant/1';
+  writeFileSync(path, JSON.stringify({ assumptionsByVariantId: { [id]: product } }));
+  let price = '20.00';
+  const request = vi.fn(async () => new Response(JSON.stringify({ data: { shop: { myshopifyDomain: 'test.myshopify.com', currencyCode: 'EUR' }, productVariants: { nodes: [{ id, sku: product.sku, price, inventoryQuantity: 999, product: { id: 'gid://shopify/Product/1', title: 'Fresh title', productType: 'Accessories' } }], pageInfo: { hasNextPage: false } } } })));
+  const source = shopifyBatchSource('test.myshopify.com', path, { SHOPIFY_ACCESS_TOKEN: 'test-only' }, request);
+  expect((await source()).products[0].salePriceCents).toBe(2000);
+  price = '30.00'; const fresh = await source();
+  expect(fresh.products[0].salePriceCents).toBe(3000);
+  expect(fresh.products[0].stock).toBe(product.stock);
+  expect(request).toHaveBeenCalledTimes(2);
+  writeFileSync(path, JSON.stringify({ assumptionsByVariantId: { [id]: { currency: 'EUR' } } }));
+  await expect(source()).rejects.toThrow();
+});

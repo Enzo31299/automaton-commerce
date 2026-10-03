@@ -10,7 +10,7 @@ import { createDefaultRules } from '../agent/policy-rules/index.js';
 import { createHeartbeatDaemon } from '../heartbeat/daemon.js';
 import { ModelRegistry } from '../inference/registry.js';
 import { runCommerceBatch } from './run.js';
-import { object } from './agents.js';
+import { object, validateProduct } from './agents.js';
 import type { AutomatonConfig, AutomatonIdentity, ConwayClient, InferenceClient, InferenceResponse } from '../types.js';
 
 const MODEL = 'commerce-rules-v1';
@@ -60,6 +60,7 @@ function rulePlanner(skus: string[], offers: Record<string, unknown>, intervalSe
 
 export async function runCommerceRuntime(input: unknown, dbPath: string, options: {
   once?: boolean; intervalSeconds?: number; signal?: AbortSignal;
+  refreshBatch?: () => Promise<unknown>;
 } = {}): Promise<void> {
   const intervalSeconds = options.intervalSeconds ?? 3600;
   if (!Number.isSafeInteger(intervalSeconds) || intervalSeconds < 60 || intervalSeconds > 86400) {
@@ -75,7 +76,7 @@ export async function runCommerceRuntime(input: unknown, dbPath: string, options
   try {
     const imported = runCommerceBatch(db, input);
     const skus = imported.results.map(r => r.product.sku);
-    const offers = batch.offersBySku === undefined ? {} : object(batch.offersBySku);
+    let offers = batch.offersBySku === undefined ? {} : object(batch.offersBySku);
     const config: AutomatonConfig = { runtimeProfile: 'commerce', name: 'Automaton Commerce',
       genesisPrompt: 'Analyse supplied commerce data; recommendations only.', creatorAddress: 'commerce:operator',
       registeredWithConway: false, sandboxId: 'commerce-local', conwayApiUrl: '', conwayApiKey: '',
@@ -100,7 +101,19 @@ export async function runCommerceRuntime(input: unknown, dbPath: string, options
     // Once mode verifies health through the same daemon without background tasks.
     await heartbeat.forceRun('health_check');
     if (!options.once) heartbeat.start();
+    let firstCycle = true;
     do {
+      if (!firstCycle && options.refreshBatch) {
+        const freshInput = await options.refreshBatch();
+        if (options.signal?.aborted) break;
+        const fresh = object(freshInput);
+        if (!Array.isArray(fresh.products) || fresh.products.length !== skus.length) throw new Error('Refreshed product selection changed');
+        const freshSkus = fresh.products.map(value => validateProduct(value).sku);
+        if (new Set(freshSkus).size !== skus.length || freshSkus.some(sku => !skus.includes(sku))) throw new Error('Refreshed product selection changed');
+        runCommerceBatch(db, freshInput);
+        offers = fresh.offersBySku === undefined ? {} : object(fresh.offersBySku);
+      }
+      firstCycle = false;
       let toolFailed = false;
       let completedCalls = 0;
       await runAgentLoop({ identity, config, db, conway: disabledConway,
@@ -110,7 +123,7 @@ export async function runCommerceRuntime(input: unknown, dbPath: string, options
           if (turn.toolCalls.some(t => t.error)) toolFailed = true;
         } });
       if (toolFailed || completedCalls !== skus.length * 3 + 3) throw new Error('Commerce cycle incomplete; inspect local policy/turn reports');
-      db.setKV('commerce:runtime_last_cycle', JSON.stringify({ mode: 'local-rules', timestamp: new Date().toISOString(), skus: skus.length, shopWrites: false }));
+      db.setKV('commerce:runtime_last_cycle', JSON.stringify({ mode: options.refreshBatch ? 'refreshed-rules' : 'local-rules', timestamp: new Date().toISOString(), skus: skus.length, shopWrites: false }));
       if (options.once || options.signal?.aborted) break;
       await new Promise<void>(done => {
         const deadline = Date.now() + intervalSeconds * 1000;

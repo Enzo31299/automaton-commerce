@@ -48,6 +48,35 @@ on a fixed input. It does not call the connected command or refresh Shopify or
 AutoDS. Use one process per SQLite database. A persistent disk is required to
 retain state across restarts; keep recoverable, private backups.
 
+## Continuous Shopify reads: new entrypoint, test mode only
+
+```sh
+node dist/commerce/shopify-runtime.js /var/data/evidence.json /var/data/commerce.db --once
+node dist/commerce/shopify-runtime.js /var/data/evidence.json /var/data/commerce.db
+```
+
+The first command completes one loop cycle and exits. The second refreshes the
+Shopify catalogue and reloads the private evidence file before each subsequent
+cycle (default one hour, or a heartbeat wake). It reuses the client credentials
+token provider, so tokens refresh before expiry. The four agents still use the
+original Agent Loop, Policy Engine, SQLite, Memory and Heartbeat. Crypto, wallets
+and Conway operations remain disabled in this path. This is deterministic rules
+planning; no paid language model is invoked.
+
+Only variants explicitly named in `assumptionsByVariantId` are analysed. Missing
+variants, incomplete costs, unavailable Shopify, or a changed selected SKU set
+stop the process before another agent cycle. Keep the same selected SKUs while
+running; stop and review the input before changing selection. Valid refreshed
+batches are imported atomically. The last successful cycle marker is retained
+on refresh failure; it must not be treated as a new successful observation.
+SIGTERM/SIGINT finishes the current bounded request/cycle and closes SQLite.
+
+Shopify prices and titles are refreshed. Supplier stock, costs, shipping,
+compliance and offer evidence remain supplied data; Shopify inventory is never
+substituted for supplier stock. No AutoDS live adapter or supplier freshness
+validation is provided by this entrypoint. Transport tests use synthetic
+responses; actual server authentication and deployment remain unvalidated.
+
 ## Remaining release gates
 
 * Configure actual host secrets and validate standalone Shopify token exchange,
@@ -55,8 +84,8 @@ retain state across restarts; keep recoverable, private backups.
 * Obtain supported AutoDS API access or validate an agreed data exchange. Its
   browser session and its existing Shopify app do not grant this process access.
 * Complete supplier costs, shipping regions, stock and compliance evidence.
-* Integrate fresh source reads into the continuous runtime with explicit failure
-  handling before describing it as a live autonomous shop agent.
+* Shopify refresh is implemented; validate it on the actual host and integrate
+  supported AutoDS refresh/freshness handling before calling it fully connected.
 * Verify full CI for the release commit, persisted reports, restart recovery and
   clean shutdown on the actual host. No store writes should occur in this phase.
 

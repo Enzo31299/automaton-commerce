@@ -119,7 +119,10 @@ sessions do not supply runtime credentials. No host has been provisioned, no
 secret has been committed, and no boutique deployment has been performed.
 
 The wallet-free Agent Loop/Policy/Memory/Heartbeat entrypoint now exists as a
-local fixed-rules runtime; it does not refresh Shopify or AutoDS automatically.
+local fixed-rules runtime. The separate `shopify-runtime.js` entrypoint now
+refreshes Shopify before subsequent cycles; AutoDS still uses supplied evidence.
+See [hosting preparation](commerce-hosting.md). Its real server transport remains
+unvalidated.
 
 The context token counter now bypasses exact BPE encoding for text longer than
 4096 UTF-16 code units, using the UTF-8 byte count as a conservative upper bound.

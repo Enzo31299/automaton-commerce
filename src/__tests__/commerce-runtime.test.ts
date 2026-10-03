@@ -72,3 +72,31 @@ it('rejects invalid intervals and incomplete costs before analysing products', a
   const { shippingCostCents, ...incomplete } = product;
   await expect(runCommerceRuntime({ products: [incomplete] }, join(dir, 'b.db'), { once: true })).rejects.toThrow();
 });
+
+it.each(['ok', 'failure', 'changed-selection'] as const)('refreshes at cycle boundaries and stops safely on %s', async mode => {
+  const dir = mkdtempSync(join(tmpdir(), 'commerce-refresh-')); dirs.push(dir);
+  const path = join(dir, 'state.db'); const controller = new AbortController();
+  const refresh = vi.fn(async () => {
+    if (mode === 'failure') throw new Error('Source unavailable');
+    return { products: [{ ...product, sku: mode === 'changed-selection' ? 'OTHER' : product.sku, salePriceCents: 3000 }] };
+  });
+  const running = runCommerceRuntime({ products: [product] }, path, { signal: controller.signal, refreshBatch: refresh });
+  const outcome = running.then(() => undefined, error => error);
+  const db = createDatabase(path);
+  try {
+    await vi.waitFor(() => expect(db.getKV('commerce:runtime_last_cycle')).toBeDefined(), { timeout: 5000 });
+    insertWakeEvent(db.raw, 'heartbeat', 'Refresh test');
+    if (mode === 'ok') {
+      await vi.waitFor(() => expect(db.getTurnCount()).toBe(12), { timeout: 5000 });
+      controller.abort(); expect(await outcome).toBeUndefined();
+      expect(db.getKV('commerce:runtime_last_cycle')).toContain('refreshed-rules');
+    } else {
+      expect(await outcome).toBeInstanceOf(Error);
+      expect(db.getTurnCount()).toBe(6);
+    }
+    const row = db.raw.prepare('SELECT product_json FROM commerce_products WHERE sku=?').get(product.sku) as { product_json: string };
+    expect(JSON.parse(row.product_json).salePriceCents).toBe(mode === 'ok' ? 3000 : 2000);
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(db.getAgentState()).toBe('sleeping');
+  } finally { controller.abort(); await outcome; db.close(); }
+}, 15000);
