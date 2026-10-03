@@ -12,7 +12,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - name: Run Trader tests
-        run: pnpm exec vitest run src/__tests__/trading.test.ts src/__tests__/trading-backtest.test.ts src/__tests__/trading-walk-forward.test.ts src/__tests__/trading-market-data.test.ts src/__tests__/trading-historical-data.test.ts src/__tests__/trading-coinbase-market-data.test.ts src/__tests__/trading-strategy-comparison.test.ts src/__tests__/trading-public-crypto-research.test.ts
+        run: pnpm exec vitest run src/__tests__/trading.test.ts src/__tests__/trading-backtest.test.ts src/__tests__/trading-walk-forward.test.ts src/__tests__/trading-market-data.test.ts src/__tests__/trading-historical-data.test.ts src/__tests__/trading-coinbase-market-data.test.ts src/__tests__/trading-strategy-comparison.test.ts src/__tests__/trading-paper-trading-gate.test.ts src/__tests__/trading-research-report.test.ts src/__tests__/trading-public-crypto-research.test.ts
 
   build-and-test:
     runs-on: ubuntu-latest
