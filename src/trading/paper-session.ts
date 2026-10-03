@@ -26,13 +26,15 @@ export class PaperTradingSession {
     initialEquity: number,
     private readonly risk: TradingRiskEngine,
     private readonly execution: ExecutionAdapter,
+    restoredState?: PaperSessionState,
   ) {
     if (!eligibility.eligible) throw new Error(`Research gate blocked paper trading: ${eligibility.reasons.join(",")}`);
     if (initialEquity <= 0) throw new Error("Initial equity must be positive");
-    this.state = {
+    this.state = restoredState ? structuredClone(restoredState) : {
       initialEquity, equity: initialEquity, cash: initialEquity, realizedPnl: 0,
       dailyPnl: 0, openPositions: 0, trades: 0, blockedTrades: 0, positions: {},
     };
+    if (this.state.initialEquity !== initialEquity) throw new Error("Restored portfolio initial equity mismatch");
   }
 
   snapshot(): Readonly<PaperSessionState> {
