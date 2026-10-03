@@ -6,6 +6,7 @@
  */
 
 import nodePath from "node:path";
+import { createCommerceTools } from "../commerce/tools.js";
 import { ulid } from "ulid";
 import type {
   AutomatonTool,
@@ -110,6 +111,7 @@ function isForbiddenCommand(command: string, sandboxId: string): string | null {
 
 export function createBuiltinTools(sandboxId: string): AutomatonTool[] {
   return [
+    ...createCommerceTools(),
     // ── VM/Sandbox Tools ──
     {
       name: "exec",

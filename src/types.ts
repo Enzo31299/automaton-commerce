@@ -152,6 +152,7 @@ export interface AutomatonTool {
 }
 
 export type ToolCategory =
+  | "commerce"
   | "vm"
   | "conway"
   | "self_mod"
