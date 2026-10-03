@@ -32,3 +32,4 @@ export * from "./walk-forward.js";
 export * from "./market-data.js";
 export * from "./research.js";
 export * from "./historical-data.js";
+export * from "./coinbase-market-data.js";
