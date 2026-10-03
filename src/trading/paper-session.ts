@@ -47,7 +47,9 @@ export class PaperTradingSession {
       this.state.blockedTrades += 1;
       return null;
     }
-    const decision = this.risk.evaluate(intent, this.state);
+    const existingNotional = position ? position.quantity * intent.price : 0;
+    const opensNewPosition = intent.side === "buy" && !position;
+    const decision = this.risk.evaluate(intent, this.state, { existingNotional, opensNewPosition });
     if (!decision.allowed) {
       this.state.blockedTrades += 1;
       return null;
