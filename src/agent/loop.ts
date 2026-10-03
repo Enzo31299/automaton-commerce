@@ -26,6 +26,7 @@ import type {
 } from "../types.js";
 import { DEFAULT_MODEL_STRATEGY_CONFIG } from "../types.js";
 import type { PolicyEngine } from "./policy-engine.js";
+import { selectRuntimeTools } from "../commerce/profile.js";
 import { buildSystemPrompt, buildWakeupPrompt } from "./system-prompt.js";
 import { buildContextMessages, trimContext } from "./context.js";
 import {
@@ -98,7 +99,7 @@ export async function runAgentLoop(
 
   const builtinTools = createBuiltinTools(identity.sandboxId);
   const installedTools = loadInstalledTools(db);
-  const tools = [...builtinTools, ...installedTools];
+  const tools = selectRuntimeTools([...builtinTools, ...installedTools], config);
   const toolContext: ToolContext = {
     identity,
     config,
@@ -129,7 +130,7 @@ export async function runAgentLoop(
   let orchestrator: Orchestrator | undefined;
   let workerPool: LocalWorkerPool | undefined;
 
-  if (hasTable(db.raw, "goals")) {
+  if (config.runtimeProfile !== "commerce" && hasTable(db.raw, "goals")) {
     try {
       planModeController = new PlanModeController(db.raw);
 
@@ -358,7 +359,7 @@ export async function runAgentLoop(
   onStateChange?.("waking");
 
   // Get financial state
-  let financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm");
+  let financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm", config.runtimeProfile === "commerce");
 
   // Check if this is the first run
   const isFirstRun = db.getTurnCount() === 0;
@@ -426,7 +427,7 @@ export async function runAgentLoop(
       }
 
       // Refresh financial state periodically
-      financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm");
+      financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm", config.runtimeProfile === "commerce");
 
       // Check survival tier
       // api_unreachable: creditsCents === -1 means API failed with no cache.
@@ -441,7 +442,7 @@ export async function runAgentLoop(
         // available, buy credits NOW — before attempting inference.
         // This prevents the agent from dying mid-loop while waiting for
         // the heartbeat to fire. Uses a 60s cooldown to avoid hammering.
-        if ((tier === "critical" || tier === "low_compute") && financial.usdcBalance >= 5) {
+        if (config.runtimeProfile !== "commerce" && (tier === "critical" || tier === "low_compute") && financial.usdcBalance >= 5) {
           const INLINE_TOPUP_COOLDOWN_MS = 60_000;
           const lastInlineTopup = db.getKV("last_inline_topup_attempt");
           const cooldownExpired = !lastInlineTopup ||
@@ -461,7 +462,7 @@ export async function runAgentLoop(
                 log(config, `[AUTO-TOPUP] Bought $${topupResult.amountUsd} credits from USDC mid-loop`);
                 // Re-fetch financial state after topup so the rest of
                 // the turn sees the updated balance.
-                financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm");
+                financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm", config.runtimeProfile === "commerce");
               }
             } catch (err: any) {
               logger.warn(`Inline auto-topup failed: ${err.message}`);
@@ -948,9 +949,10 @@ async function getFinancialState(
   address: string,
   db?: AutomatonDatabase,
   chainType?: string,
+  commerce = false,
 ): Promise<FinancialState> {
   let creditsCents = _lastKnownCredits;
-  let usdcBalance = _lastKnownUsdc;
+  let usdcBalance = commerce ? 0 : _lastKnownUsdc;
 
   try {
     creditsCents = await conway.getCreditsBalance();
@@ -966,7 +968,7 @@ async function getFinancialState(
           logger.warn("Balance API failed, using cached balance");
           return {
             creditsCents: parsed.creditsCents ?? 0,
-            usdcBalance: parsed.usdcBalance ?? 0,
+            usdcBalance: commerce ? 0 : parsed.usdcBalance ?? 0,
             lastChecked: new Date().toISOString(),
           };
         } catch (parseError) {
@@ -978,12 +980,12 @@ async function getFinancialState(
     logger.error("Balance API failed, no cache available");
     return {
       creditsCents: -1,
-      usdcBalance: -1,
+      usdcBalance: commerce ? 0 : -1,
       lastChecked: new Date().toISOString(),
     };
   }
 
-  try {
+  if (!commerce) try {
     const network = chainType === "solana" ? "solana:mainnet" : "eip155:8453";
     usdcBalance = await getUsdcBalance(address, network, chainType as any);
     if (usdcBalance > 0) _lastKnownUsdc = usdcBalance;

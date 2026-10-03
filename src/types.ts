@@ -41,6 +41,8 @@ export interface ProvisionResult {
 // ─── Configuration ───────────────────────────────────────────────
 
 export interface AutomatonConfig {
+  /** Opt-in migration profile; omitted keeps upstream behavior. */
+  runtimeProfile?: "legacy" | "commerce";
   name: string;
   genesisPrompt: string;
   creatorMessage?: string;

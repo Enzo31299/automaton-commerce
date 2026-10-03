@@ -94,7 +94,7 @@ export class DurableScheduler {
         this.db,
         this.legacyContext.conway,
         this.config,
-        this.legacyContext.identity.address,
+        this.legacyContext.config.runtimeProfile === "commerce" ? undefined : this.legacyContext.identity.address,
         this.legacyContext.identity.chainType,
       );
 

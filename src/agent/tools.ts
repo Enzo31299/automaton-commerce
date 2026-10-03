@@ -5,6 +5,7 @@
  * Tools are organized by category and exposed to the inference model.
  */
 
+import { isCommerceToolAllowed } from "../commerce/profile.js";
 import nodePath from "node:path";
 import { createCommerceTools } from "../commerce/tools.js";
 import { ulid } from "ulid";
@@ -3316,6 +3317,12 @@ export async function executeTool(
       durationMs: 0,
       error: `Unknown tool: ${toolName}`,
     };
+  }
+
+  // Defense in depth: do not permit legacy tools even if callers bypass selection.
+  if (context.config.runtimeProfile === "commerce" && !isCommerceToolAllowed(toolName)) {
+    return { id: ulid(), name: toolName, arguments: args, result: "",
+      durationMs: Date.now() - startTime, error: "Commerce profile denied legacy tool" };
   }
 
   // Policy evaluation (if engine is provided)

@@ -1,3 +1,10 @@
+# Automaton Commerce V1
+
+E-commerce migration of the Conway Automaton fork. Start with the
+[Commerce V1 guide](docs/commerce-v1.md) for the four agents, configuration,
+cost model, migration boundaries and tests. Upstream runtime documentation
+is preserved below.
+
 # Automaton: Self-Improving, Self-Replicating, Sovereign AI
 
 *The first AI that can earn its own existence, replicate, and evolve — without needing a human.*

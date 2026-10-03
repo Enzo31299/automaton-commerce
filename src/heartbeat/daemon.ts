@@ -21,6 +21,7 @@ import type {
   HeartbeatLegacyContext,
   SocialClientInterface,
 } from "../types.js";
+import { commerceCatalogueReview } from "../commerce/heartbeat.js";
 import { BUILTIN_TASKS } from "./tasks.js";
 import { DurableScheduler } from "./scheduler.js";
 import { upsertHeartbeatSchedule } from "../state/database.js";
@@ -73,8 +74,10 @@ export function createHeartbeatDaemon(
   // Build task map from BUILTIN_TASKS
   const taskMap = new Map<string, HeartbeatTaskFn>();
   for (const [name, fn] of Object.entries(BUILTIN_TASKS)) {
-    taskMap.set(name, fn);
+    if (config.runtimeProfile !== "commerce" || name === "health_check") taskMap.set(name, fn);
   }
+
+  if (config.runtimeProfile === "commerce") taskMap.set("commerce_catalogue_review", commerceCatalogueReview);
 
   // Seed heartbeat_schedule from config entries if not already present
   for (const entry of heartbeatConfig.entries) {

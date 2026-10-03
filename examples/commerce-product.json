@@ -1,0 +1,18 @@
+{
+  "sku": "ROLLER-1",
+  "title": "Ice roller",
+  "category": "accessories",
+  "currency": "EUR",
+  "salePriceCents": 2000,
+  "supplierCostCents": 500,
+  "shippingCostCents": 300,
+  "paymentFeeBps": 150,
+  "paymentFixedCents": 25,
+  "taxReserveCents": 200,
+  "returnReserveCents": 50,
+  "advertisingCostCents": 200,
+  "stock": 12,
+  "dailySales": 2,
+  "leadTimeDays": 5,
+  "safetyStock": 3
+}

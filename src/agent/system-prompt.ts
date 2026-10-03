@@ -5,6 +5,7 @@
  * The prompt is rebuilt each turn with dynamic context.
  */
 
+import { commerceSystemPrompt } from "../commerce/profile.js";
 import fs from "fs";
 import crypto from "crypto";
 import path from "path";
@@ -573,6 +574,8 @@ export function buildSystemPrompt(params: {
     isFirstRun,
   } = params;
 
+  if (config.runtimeProfile === "commerce") return commerceSystemPrompt(config.name);
+
   const sections: string[] = [];
 
   const chainType = config.chainType || identity.chainType || "evm";
@@ -800,6 +803,8 @@ export function buildWakeupPrompt(params: {
 }): string {
   const { identity, config, financial, db } = params;
   const turnCount = db.getTurnCount();
+  if (config.runtimeProfile === "commerce") return `Resume commerce analysis after ${turnCount} turns. Review catalogue, goals and memory; report missing cost or supplier data.`;
+
 
   const chainType = config.chainType || "evm";
   const usdcNetwork = chainType === "solana" ? "Solana" : "Base";
