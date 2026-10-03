@@ -31,3 +31,4 @@ export * from "./backtest.js";
 export * from "./walk-forward.js";
 export * from "./market-data.js";
 export * from "./research.js";
+export * from "./historical-data.js";
