@@ -1,6 +1,19 @@
 name: CI
 on: [push, pull_request]
 jobs:
+  trader-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - name: Run Trader tests
+        run: pnpm exec vitest run src/__tests__/trading.test.ts src/__tests__/trading-backtest.test.ts src/__tests__/trading-walk-forward.test.ts
+
   build-and-test:
     runs-on: ubuntu-latest
     strategy:
