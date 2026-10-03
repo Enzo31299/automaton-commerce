@@ -36,3 +36,5 @@ export * from "./coinbase-market-data.js";
 export * from "./public-crypto-research.js";
 export * from "./momentum-strategy.js";
 export * from "./strategy-comparison.js";
+export * from "./research-report.js";
+export * from "./paper-trading-gate.js";
