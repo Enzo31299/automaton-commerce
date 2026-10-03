@@ -2,6 +2,7 @@ import { PaperExecutionAdapter } from "./execution.js";
 import type { MarketDataProvider, MarketRequest } from "./market-data.js";
 import { PaperTradingLoop } from "./paper-loop.js";
 import { PaperTradingSession } from "./paper-session.js";
+import { PaperPortfolioStore } from "./paper-portfolio-store.js";
 import type { PaperTradingDecision } from "./paper-trading-gate.js";
 import { TradingRiskEngine } from "./risk-engine.js";
 import { SqliteBackedTradingJournal, type KeyValueDatabase } from "./sqlite-journal.js";
@@ -32,7 +33,9 @@ export function createPaperTraderRuntime(
 ): TraderRuntime {
   const risk = new TradingRiskEngine(config.riskLimits);
   const execution = new PaperExecutionAdapter();
-  const session = new PaperTradingSession(eligibility, config.initialEquity, risk, execution);
+  const portfolioStore = new PaperPortfolioStore(db);
+  const restored = portfolioStore.load()?.state;
+  const session = new PaperTradingSession(eligibility, config.initialEquity, risk, execution, restored);
   const loop = new PaperTradingLoop(marketData, strategy, session, {
     quantity: config.quantity,
     ...(config.stopLossFraction === undefined ? {} : { stopLossFraction: config.stopLossFraction }),
@@ -44,6 +47,7 @@ export function createPaperTraderRuntime(
     async tick(request: MarketRequest): Promise<void> {
       await runTraderHeartbeat(loop, journal, request, strategy.name);
       memory.observe(await journal.recent(config.journalLimit ?? 1000));
+      portfolioStore.save(session.snapshot() as any);
       db.setKV("trader:last_tick", new Date().toISOString());
     },
     snapshot: () => session.snapshot(),
