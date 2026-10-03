@@ -5,6 +5,9 @@ E-commerce migration of the Conway Automaton fork. Start with the
 cost model, migration boundaries and tests. Upstream runtime documentation
 is preserved below.
 
+See [connection setup and test deployment](docs/commerce-connections.md) for the
+read-only Shopify runner and current AutoDS/Minea integration blockers.
+
 # Automaton: Self-Improving, Self-Replicating, Sovereign AI
 
 *The first AI that can earn its own existence, replicate, and evolve — without needing a human.*

@@ -4,6 +4,8 @@ The Conway Agent Loop, Policy Engine, SQLite database, durable Heartbeat and
 Memory remain in place. Existing configuration retains legacy behavior.
 Set `"runtimeProfile": "commerce"` in your existing configuration to opt in.
 This is an analysis and local-draft release, not a connected shop operator.
+The [connection guide](commerce-connections.md) documents the standalone Shopify
+read-only runner. It does not yet provide autonomous shop operation.
 
 ## Agents and tools
 
