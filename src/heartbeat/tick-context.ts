@@ -43,20 +43,23 @@ export async function buildTickContext(
   config: HeartbeatConfig,
   walletAddress?: string,
   chainType?: string,
+  runtimeProfile?: "legacy" | "commerce" | "trader",
 ): Promise<TickContext> {
   const tickId = generateTickId();
   const startedAt = new Date();
 
-  // Fetch balances ONCE
+  // Trader is deliberately independent from Conway credits/survival economics.
   let creditBalance = 0;
-  try {
-    creditBalance = await conway.getCreditsBalance();
-  } catch (err: any) {
-    logger.error("Failed to fetch credit balance", err instanceof Error ? err : undefined);
+  if (runtimeProfile !== "trader") {
+    try {
+      creditBalance = await conway.getCreditsBalance();
+    } catch (err: any) {
+      logger.error("Failed to fetch credit balance", err instanceof Error ? err : undefined);
+    }
   }
 
   let usdcBalance = 0;
-  if (walletAddress) {
+  if (walletAddress && runtimeProfile !== "trader") {
     try {
       const network = chainType === "solana" ? "solana:mainnet" : "eip155:8453";
       usdcBalance = await getUsdcBalance(walletAddress, network, chainType as any);
@@ -65,7 +68,7 @@ export async function buildTickContext(
     }
   }
 
-  const survivalTier = getSurvivalTier(creditBalance);
+  const survivalTier = runtimeProfile === "trader" ? "normal" : getSurvivalTier(creditBalance);
   const lowComputeMultiplier = config.lowComputeMultiplier ?? 4;
 
   return {
