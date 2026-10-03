@@ -12,11 +12,12 @@ export function createTraderPaperCycleTask(
   db?: KeyValueDatabase,
 ): HeartbeatTaskFn {
   if (requests.length === 0) throw new Error("Trader paper cycle requires at least one market");
+  if ((marketData && !db) || (!marketData && db)) throw new Error("marketData and db must be provided together");
   const guard = db ? new CandleProcessingGuard(db) : undefined;
   return async () => {
     for (const request of requests) {
       if (guard && marketData) {
-        const series = await marketData.getSeries({ ...request, limit: 1 });
+        const series = await marketData.getCandles({ ...request, limit: 1 });
         const latest = series.candles.at(-1);
         if (!latest || !guard.shouldProcess(request.symbol, request.timeframe, latest.timestamp)) continue;
         await runtime.tick(request);
