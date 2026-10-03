@@ -1,0 +1,22 @@
+name: Trader Research
+
+on:
+  workflow_dispatch:
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Run real BTC ETH research
+        run: pnpm exec tsx scripts/trader-research.ts | tee trader-research.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trader-research
+          path: trader-research.json
