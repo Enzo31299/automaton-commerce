@@ -41,3 +41,5 @@ export * from "./paper-trading-gate.js";
 export * from "./paper-session.js";
 export * from "./paper-loop.js";
 export * from "./trading-journal.js";
+export * from "./sqlite-journal.js";
+export * from "./trader-heartbeat.js";
