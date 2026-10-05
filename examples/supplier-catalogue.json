@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "source": "supplier-export",
+  "domain": "example.myshopify.com",
+  "currency": "EUR",
+  "policy": {
+    "country": "FR",
+    "maxAgeHours": 24,
+    "minContributionCents": 600,
+    "minMarginBps": 2500,
+    "maxLeadTimeDays": 17
+  },
+  "products": [
+    {
+      "supplier": "Synthetic example, not a supplier",
+      "supplierProductId": "EXAMPLE-1",
+      "title": "Brosse de démonstration",
+      "category": "Coiffure",
+      "description": "Exemple synthétique à remplacer par des données vérifiées.",
+      "evidence": {
+        "observedAt": "2026-10-05T07:00:00Z",
+        "country": "FR",
+        "costsVerified": false,
+        "shippingVerified": false,
+        "returnsVerified": false,
+        "contentReviewed": false,
+        "traceabilityVerified": false,
+        "complianceVerified": false,
+        "references": {
+          "stock": "https://example.com/synthetic-evidence",
+          "costs": "https://example.com/synthetic-evidence",
+          "shipping": "https://example.com/synthetic-evidence",
+          "returns": "https://example.com/synthetic-evidence",
+          "content": "https://example.com/synthetic-evidence",
+          "traceability": "https://example.com/synthetic-evidence",
+          "compliance": "https://example.com/synthetic-evidence"
+        }
+      },
+      "variants": [
+        {
+          "name": "Rose",
+          "product": {
+            "sku": "SYNTHETIC-BRUSH-1",
+            "title": "Brosse de démonstration",
+            "category": "Coiffure",
+            "currency": "EUR",
+            "salePriceCents": 2000,
+            "supplierCostCents": 400,
+            "shippingCostCents": 200,
+            "paymentFeeBps": 150,
+            "paymentFixedCents": 25,
+            "taxReserveCents": 200,
+            "returnReserveCents": 50,
+            "advertisingCostCents": 200,
+            "stock": 20,
+            "dailySales": 1,
+            "leadTimeDays": 10,
+            "safetyStock": 3
+          }
+        }
+      ]
+    }
+  ]
+}

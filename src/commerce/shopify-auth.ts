@@ -6,6 +6,7 @@ export function shopifyTokenProvider(
   env: NodeJS.ProcessEnv = process.env,
   request: typeof fetch = fetch,
   now: () => number = Date.now,
+  permission: 'read' | 'draft-write' = 'read',
 ): () => Promise<string> {
   shopDomain(domain);
   const token = env.SHOPIFY_ACCESS_TOKEN;
@@ -32,15 +33,18 @@ export function shopifyTokenProvider(
       const body = await response.json();
       if (!body || typeof body !== 'object' || !valid(body.access_token) || typeof body.scope !== 'string'
         || !Number.isSafeInteger(body.expires_in) || body.expires_in <= 60 || body.expires_in > 86400) throw new Error('Invalid token response');
-      const scopes = new Set(body.scope.split(',').map((scope: string) => scope.trim()));
-      if (scopes.size !== 1 || !scopes.has('read_products')) throw new Error('Unexpected permissions');
+      const scopes = new Set<string>(body.scope.split(',').map((scope: string) => scope.trim()));
+      const accepted = permission === 'read'
+        ? scopes.size === 1 && scopes.has('read_products')
+        : scopes.has('write_products') && scopes.has('read_inventory') && [...scopes].every(scope => ['read_products', 'write_products', 'read_inventory'].includes(scope));
+      if (!accepted) throw new Error('Unexpected permissions');
       const refreshAt = started + (body.expires_in - 60) * 1000;
       if (now() >= refreshAt) throw new Error('Token already expired');
       cached = { token: body.access_token, refreshAt };
       return cached.token;
     } catch {
       cached = undefined;
-      throw new Error('Shopify authentication failed. Verify installation, organization, read_products and server credentials');
+      throw new Error('Shopify authentication failed. Verify installation, organization, required product scopes and server credentials');
     }
   }
   return async () => {
