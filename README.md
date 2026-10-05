@@ -8,6 +8,11 @@ is preserved below.
 See [connection setup and test deployment](docs/commerce-connections.md) for the
 read-only Shopify runner and current AutoDS/Minea integration blockers.
 
+The [supplier catalogue draft-import guide](docs/commerce-catalogue-import.md)
+documents offline supplier analysis, private evidence review and explicitly
+enabled Shopify draft creation. Live AutoDS access and automatic publication
+remain unavailable; this capability has not been validated on a real store.
+
 # Automaton: Self-Improving, Self-Replicating, Sovereign AI
 
 *The first AI that can earn its own existence, replicate, and evolve — without needing a human.*

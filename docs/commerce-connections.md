@@ -130,3 +130,10 @@ This avoids blocking on long repeated input and excludes that input from the
 token cache. Large histories can therefore be compressed sooner; this changes
 budget precision, not the stored history or commerce product data. Small inputs
 continue to use the existing tokenizer.
+
+## Separate supplier catalogue draft-import capability
+
+See [supplier catalogue draft import](commerce-catalogue-import.md) for the
+normalized private exchange, dry-run command, explicit write gates and test-store
+validation requirements. It does not enable live AutoDS access or publication,
+and does not change the read-only runtime described above.

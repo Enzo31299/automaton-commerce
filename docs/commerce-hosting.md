@@ -90,3 +90,10 @@ responses; actual server authentication and deployment remain unvalidated.
   clean shutdown on the actual host. No store writes should occur in this phase.
 
 No paid service or subscription is created by these instructions.
+
+## Separate supplier catalogue draft-import capability
+
+See [supplier catalogue draft import](commerce-catalogue-import.md) for the
+normalized private exchange, dry-run command, explicit write gates and test-store
+validation requirements. It does not enable live AutoDS access or publication,
+and does not change the read-only runtime described above.
