@@ -49,8 +49,10 @@ describe("paper execution costs", () => {
     const afterSell = session.snapshot();
     expect(afterSell.positions["BTC-USD"]).toBeUndefined();
     expect(afterSell.cash).toBeCloseTo(155.8011);
-    expect(afterSell.realizedPnl).toBeCloseTo(5.8011);
-    expect(afterSell.dailyPnl).toBeCloseTo(5.8011);
+    // Entry fee is already embedded in averageEntryPrice, so realizedPnl after
+    // the round trip is net cash profit minus the separately tracked entry fee.
+    expect(afterSell.realizedPnl).toBeCloseTo(4.791);
+    expect(afterSell.dailyPnl).toBeCloseTo(4.791);
     expect(afterSell.equity).toBeCloseTo(155.8011);
   });
 
