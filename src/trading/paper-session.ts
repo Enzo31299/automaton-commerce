@@ -93,13 +93,13 @@ export class PaperTradingSession {
       const previousCost = previousQuantity * (existing?.averageEntryPrice ?? 0);
       const quantity = previousQuantity + fill.quantity;
       this.state.cash -= totalCost;
+      // The entry cost basis already includes the buy fee. Do not also book that
+      // fee as realized PnL here, otherwise it is counted a second time on exit.
       this.state.positions[fill.symbol] = {
         symbol: fill.symbol,
         quantity,
         averageEntryPrice: (previousCost + totalCost) / quantity,
       };
-      this.state.realizedPnl -= fill.fee;
-      this.state.dailyPnl -= fill.fee;
     } else if (existing) {
       const realizedBeforeFee = fill.quantity * (fill.fillPrice - existing.averageEntryPrice);
       const realized = realizedBeforeFee - fill.fee;
