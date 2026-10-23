@@ -55,6 +55,10 @@ export class PaperTradingSession {
       return null;
     }
     const result = await this.execution.execute(intent);
+    if (result.side === "buy" && result.notional + result.fee > this.state.cash) {
+      this.state.blockedTrades += 1;
+      return null;
+    }
     this.applyFill(result);
     this.state.trades += 1;
     return result;
@@ -73,19 +77,22 @@ export class PaperTradingSession {
   private applyFill(fill: ExecutionResult): void {
     const existing = this.state.positions[fill.symbol];
     if (fill.side === "buy") {
-      if (fill.notional > this.state.cash) throw new Error("Insufficient paper cash");
+      const totalCost = fill.notional + fill.fee;
       const previousQuantity = existing?.quantity ?? 0;
       const previousCost = previousQuantity * (existing?.averageEntryPrice ?? 0);
       const quantity = previousQuantity + fill.quantity;
-      this.state.cash -= fill.notional;
+      this.state.cash -= totalCost;
       this.state.positions[fill.symbol] = {
         symbol: fill.symbol,
         quantity,
-        averageEntryPrice: (previousCost + fill.notional) / quantity,
+        averageEntryPrice: (previousCost + totalCost) / quantity,
       };
+      this.state.realizedPnl -= fill.fee;
+      this.state.dailyPnl -= fill.fee;
     } else if (existing) {
-      const realized = fill.quantity * (fill.fillPrice - existing.averageEntryPrice);
-      this.state.cash += fill.notional;
+      const realizedBeforeFee = fill.quantity * (fill.fillPrice - existing.averageEntryPrice);
+      const realized = realizedBeforeFee - fill.fee;
+      this.state.cash += fill.notional - fill.fee;
       this.state.realizedPnl += realized;
       this.state.dailyPnl += realized;
       const remaining = existing.quantity - fill.quantity;
