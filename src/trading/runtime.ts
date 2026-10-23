@@ -1,5 +1,5 @@
 import { PaperExecutionAdapter } from "./execution.js";
-import type { MarketDataProvider, MarketRequest } from "./market-data.js";
+import type { MarketDataProvider, MarketRequest, MarketSeries } from "./market-data.js";
 import { PaperTradingLoop } from "./paper-loop.js";
 import { PaperTradingSession } from "./paper-session.js";
 import { PaperPortfolioStore } from "./paper-portfolio-store.js";
@@ -20,7 +20,7 @@ export interface TraderRuntimeConfig {
 }
 
 export interface TraderRuntime {
-  tick(request: MarketRequest): Promise<void>;
+  tick(request: MarketRequest, prefetchedSeries?: MarketSeries): Promise<void>;
   snapshot(): ReturnType<PaperTradingSession["snapshot"]>;
 }
 
@@ -44,8 +44,8 @@ export function createPaperTraderRuntime(
   const memory = new TradingMemory(db);
 
   return {
-    async tick(request: MarketRequest): Promise<void> {
-      await runTraderHeartbeat(loop, journal, request, strategy.name);
+    async tick(request: MarketRequest, prefetchedSeries?: MarketSeries): Promise<void> {
+      await runTraderHeartbeat(loop, journal, request, strategy.name, Date.now(), prefetchedSeries);
       memory.observe(await journal.recent(config.journalLimit ?? 1000));
       portfolioStore.save(session.snapshot());
       db.setKV("trader:last_tick", new Date().toISOString());
