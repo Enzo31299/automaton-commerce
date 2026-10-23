@@ -88,4 +88,24 @@ describe("paper trading loop", () => {
     expect(result).toMatchObject({ signal: "sell", submitted: true, blocked: false, price: 100 });
     expect(paperSession.snapshot().positions["BTC-USD"]).toBeUndefined();
   });
+
+  it("rejects invalid quantity and stop-loss configuration", () => {
+    const provider = new InMemoryMarketDataProvider(new Map());
+    expect(() => new PaperTradingLoop(provider, buyStrategy, session(), { quantity: Number.NaN }))
+      .toThrow(/finite positive/);
+    expect(() => new PaperTradingLoop(provider, buyStrategy, session(), { quantity: 0.25, stopLossFraction: 0 }))
+      .toThrow(/between 0 and 1/);
+    expect(() => new PaperTradingLoop(provider, buyStrategy, session(), { quantity: 0.25, stopLossFraction: 1 }))
+      .toThrow(/between 0 and 1/);
+  });
+
+  it("blocks a signal when the latest market price is invalid", async () => {
+    const provider = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1d", [candle(0, 1)]],
+    ]));
+    const result = await new PaperTradingLoop(provider, buyStrategy, session(), { quantity: 0.25 })
+      .tick({ symbol: "BTC-USD", timeframe: "1d" });
+    expect(result).toMatchObject({ signal: "buy", submitted: false, blocked: true, price: 0 });
+    expect(session().snapshot().trades).toBe(0);
+  });
 });
