@@ -33,7 +33,7 @@ describe("paper trading session", () => {
     expect(session.snapshot().blockedTrades).toBe(1);
 
     const filled = await session.submit({ symbol: "BTC-USD", side: "buy", quantity: 0.25, price: 100 });
-    expect(filled?.status).toBe("filled");
+    expect(filled).toMatchObject({ mode: "paper", symbol: "BTC-USD", side: "buy", quantity: 0.25, fillPrice: 100, notional: 25 });
     expect(session.snapshot().trades).toBe(1);
   });
 
