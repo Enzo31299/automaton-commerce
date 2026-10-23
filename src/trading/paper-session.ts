@@ -47,10 +47,21 @@ export class PaperTradingSession {
       this.state.blockedTrades += 1;
       return null;
     }
-    const existingNotional = position ? position.quantity * intent.price : 0;
+    const estimate = this.execution.estimate?.(intent);
+    const effectivePrice = estimate?.fillPrice ?? intent.price;
+    const existingNotional = position ? position.quantity * effectivePrice : 0;
     const opensNewPosition = intent.side === "buy" && !position;
-    const decision = this.risk.evaluate(intent, this.state, { existingNotional, opensNewPosition });
+    const decision = this.risk.evaluate(intent, this.state, {
+      existingNotional,
+      opensNewPosition,
+      estimatedFillPrice: estimate?.fillPrice,
+      estimatedFee: estimate?.fee,
+    });
     if (!decision.allowed) {
+      this.state.blockedTrades += 1;
+      return null;
+    }
+    if (intent.side === "buy" && estimate && estimate.notional + estimate.fee > this.state.cash) {
       this.state.blockedTrades += 1;
       return null;
     }
