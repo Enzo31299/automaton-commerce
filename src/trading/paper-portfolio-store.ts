@@ -39,6 +39,13 @@ function validateState(state: unknown): asserts state is PaperSessionState {
   if (entries.length !== s.openPositions || entries.some(([symbol, position]) => !isPaperPosition(position, symbol))) {
     throw new Error("Inconsistent paper positions");
   }
+
+  // A persisted snapshot is marked to the last known fill price. We cannot
+  // reconstruct that price after restart, but equity must never be below cash
+  // and a flat portfolio must reconcile exactly to cash.
+  if (s.equity + 1e-9 < s.cash || (entries.length === 0 && Math.abs(s.equity - s.cash) > 1e-9)) {
+    throw new Error("Inconsistent paper portfolio equity");
+  }
 }
 
 export class PaperPortfolioStore {
