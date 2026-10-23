@@ -1,7 +1,7 @@
 import type { MarketDataProvider, MarketRequest, MarketSeries } from "./market-data.js";
 import type { Candle } from "./strategy.js";
 
-type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
+export type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
 const GRANULARITY: Record<string, number> = {
   "1m": 60,
