@@ -1,4 +1,4 @@
-import type { MarketRequest } from "./market-data.js";
+import type { MarketRequest, MarketSeries } from "./market-data.js";
 import type { PaperTradingLoop, PaperLoopResult } from "./paper-loop.js";
 import type { TradingJournal } from "./trading-journal.js";
 
@@ -14,8 +14,9 @@ export async function runTraderHeartbeat(
   request: MarketRequest,
   strategyName: string,
   now = Date.now(),
+  prefetchedSeries?: MarketSeries,
 ): Promise<TraderHeartbeatResult> {
-  const result = await loop.tick(request);
+  const result = await loop.tick(request, prefetchedSeries);
   await journal.append({
     timestamp: now,
     type: "signal",
