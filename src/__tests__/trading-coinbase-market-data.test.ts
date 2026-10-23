@@ -22,4 +22,33 @@ describe("Coinbase public market data adapter", () => {
     await expect(provider.getCandles({ symbol: "BTC-USD", timeframe: "2h" })).rejects.toThrow();
     expect(called).toBe(false);
   });
+
+  it("rejects malformed or unsafe candles returned by Coinbase", async () => {
+    const invalidOhlc = async () => new Response(JSON.stringify([
+      [1, 110, 100, 105, 106, 1],
+    ]), { status: 200 });
+    await expect(new CoinbaseExchangeMarketDataProvider(invalidOhlc)
+      .getCandles({ symbol: "BTC-USD", timeframe: "1d" }))
+      .rejects.toThrow(/Invalid OHLC/);
+
+    const invalidPrice = async () => new Response(JSON.stringify([
+      [1, 0, 100, 50, 60, 1],
+    ]), { status: 200 });
+    await expect(new CoinbaseExchangeMarketDataProvider(invalidPrice)
+      .getCandles({ symbol: "BTC-USD", timeframe: "1d" }))
+      .rejects.toThrow(/positive/);
+  });
+
+  it("validates request bounds before contacting Coinbase", async () => {
+    let calls = 0;
+    const fetcher = async () => { calls += 1; return new Response("[]", { status: 200 }); };
+    const provider = new CoinbaseExchangeMarketDataProvider(fetcher);
+    await expect(provider.getCandles({ symbol: "BTC-USD", timeframe: "1d", start: 20, end: 10 }))
+      .rejects.toThrow(/start/);
+    await expect(provider.getCandles({ symbol: "BTC-USD", timeframe: "1d", limit: 0 }))
+      .rejects.toThrow(/limit/);
+    await expect(provider.getCandles({ symbol: " ", timeframe: "1d" }))
+      .rejects.toThrow(/symbol/);
+    expect(calls).toBe(0);
+  });
 });
