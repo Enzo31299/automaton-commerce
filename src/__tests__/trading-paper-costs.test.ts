@@ -30,7 +30,7 @@ describe("paper execution costs", () => {
     expect(fill.fee).toBeCloseTo(0.98);
   });
 
-  it("deducts execution costs from cash and realized pnl", async () => {
+  it("accounts for execution costs once and reconciles realized pnl with cash", async () => {
     const session = new PaperTradingSession(
       eligible,
       150,
@@ -41,17 +41,18 @@ describe("paper execution costs", () => {
     await session.submit({ symbol: "BTC-USD", side: "buy", quantity: 1, price: 100 });
     const afterBuy = session.snapshot();
     expect(afterBuy.cash).toBeCloseTo(47.99);
-    expect(afterBuy.realizedPnl).toBeCloseTo(-1.01);
-    expect(afterBuy.dailyPnl).toBeCloseTo(-1.01);
+    expect(afterBuy.realizedPnl).toBeCloseTo(0);
+    expect(afterBuy.dailyPnl).toBeCloseTo(0);
     expect(afterBuy.positions["BTC-USD"]?.averageEntryPrice).toBeCloseTo(102.01);
 
     await session.submit({ symbol: "BTC-USD", side: "sell", quantity: 1, price: 110 });
     const afterSell = session.snapshot();
     expect(afterSell.positions["BTC-USD"]).toBeUndefined();
     expect(afterSell.cash).toBeCloseTo(155.8011);
-    expect(afterSell.realizedPnl).toBeCloseTo(4.791);
-    expect(afterSell.dailyPnl).toBeCloseTo(4.791);
+    expect(afterSell.realizedPnl).toBeCloseTo(5.8011);
+    expect(afterSell.dailyPnl).toBeCloseTo(5.8011);
     expect(afterSell.equity).toBeCloseTo(155.8011);
+    expect(afterSell.realizedPnl).toBeCloseTo(afterSell.cash - afterSell.initialEquity);
   });
 
   it("blocks a buy when fees and slippage make the actual fill unaffordable", async () => {
