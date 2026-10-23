@@ -41,5 +41,6 @@ export interface ExecutionResult {
   quantity: number;
   fillPrice: number;
   notional: number;
+  fee: number;
   timestamp: number;
 }
