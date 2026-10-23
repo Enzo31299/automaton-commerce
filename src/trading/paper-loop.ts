@@ -1,4 +1,4 @@
-import type { MarketDataProvider, MarketRequest } from "./market-data.js";
+import type { MarketDataProvider, MarketRequest, MarketSeries } from "./market-data.js";
 import type { PaperTradingSession } from "./paper-session.js";
 import type { Strategy } from "./strategy.js";
 import type { TradeIntent } from "./types.js";
@@ -25,8 +25,11 @@ export class PaperTradingLoop {
     if (config.quantity <= 0) throw new Error("Paper loop quantity must be positive");
   }
 
-  async tick(request: MarketRequest): Promise<PaperLoopResult> {
-    const series = await this.marketData.getCandles(request);
+  async tick(request: MarketRequest, prefetchedSeries?: MarketSeries): Promise<PaperLoopResult> {
+    const series = prefetchedSeries ?? await this.marketData.getCandles(request);
+    if (series.symbol !== request.symbol || series.timeframe !== request.timeframe) {
+      throw new Error("Prefetched market series does not match request");
+    }
     if (series.candles.length === 0) return { signal: "hold", submitted: false, blocked: false };
 
     const signal = this.strategy.signal(series.candles);
