@@ -22,7 +22,13 @@ export class PaperTradingLoop {
     private readonly session: PaperTradingSession,
     private readonly config: PaperLoopConfig,
   ) {
-    if (config.quantity <= 0) throw new Error("Paper loop quantity must be positive");
+    if (!Number.isFinite(config.quantity) || config.quantity <= 0) {
+      throw new Error("Paper loop quantity must be a finite positive number");
+    }
+    if (config.stopLossFraction !== undefined &&
+        (!Number.isFinite(config.stopLossFraction) || config.stopLossFraction <= 0 || config.stopLossFraction >= 1)) {
+      throw new Error("Paper loop stop loss fraction must be between 0 and 1");
+    }
   }
 
   async tick(request: MarketRequest, prefetchedSeries?: MarketSeries): Promise<PaperLoopResult> {
@@ -41,6 +47,9 @@ export class PaperTradingLoop {
     }
 
     const price = series.candles.at(-1)!.close;
+    if (!Number.isFinite(price) || price <= 0) {
+      return { signal, submitted: false, blocked: true, price };
+    }
     const quantity = signal === "sell" ? position!.quantity : this.config.quantity;
     const intent: TradeIntent = {
       symbol: request.symbol,
