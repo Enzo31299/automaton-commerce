@@ -32,14 +32,20 @@ export class PaperTradingLoop {
     const signal = this.strategy.signal(series.candles);
     if (signal === "hold") return { signal, submitted: false, blocked: false };
 
+    const position = this.session.snapshot().positions[request.symbol];
+    if ((signal === "buy" && position) || (signal === "sell" && !position)) {
+      return { signal: "hold", submitted: false, blocked: false };
+    }
+
     const price = series.candles.at(-1)!.close;
+    const quantity = signal === "sell" ? position!.quantity : this.config.quantity;
     const intent: TradeIntent = {
       symbol: request.symbol,
       side: signal,
-      quantity: this.config.quantity,
+      quantity,
       price,
       ...(this.config.stopLossFraction !== undefined
-        ? { stopLoss: signal === "buy"
+        ? { stopLossPrice: signal === "buy"
           ? price * (1 - this.config.stopLossFraction)
           : price * (1 + this.config.stopLossFraction) }
         : {}),
