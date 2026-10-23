@@ -20,6 +20,18 @@ describe("paper portfolio persistence", () => {
     expect(() => store.load()).toThrow(/Inconsistent/);
   });
 
+  it("rejects equity below cash", () => {
+    const bad = { version: 1, savedAt: "2026-01-01T00:00:00.000Z", state: { initialEquity: 150, equity: 90, cash: 100, realizedPnl: 0, dailyPnl: 0, openPositions: 1, trades: 1, blockedTrades: 0, positions: { "BTC-USD": { symbol: "BTC-USD", quantity: 0.5, averageEntryPrice: 100 } } } };
+    const store = new PaperPortfolioStore({ getKV: () => JSON.stringify(bad), setKV: () => {} });
+    expect(() => store.load()).toThrow(/portfolio equity/);
+  });
+
+  it("requires flat portfolio equity to equal cash", () => {
+    const bad = { version: 1, savedAt: "2026-01-01T00:00:00.000Z", state: { initialEquity: 150, equity: 151, cash: 150, realizedPnl: 0, dailyPnl: 0, openPositions: 0, trades: 2, blockedTrades: 0, positions: {} } };
+    const store = new PaperPortfolioStore({ getKV: () => JSON.stringify(bad), setKV: () => {} });
+    expect(() => store.load()).toThrow(/portfolio equity/);
+  });
+
   it("rejects corrupt persisted state", () => {
     const bad = {
       version: 1,
