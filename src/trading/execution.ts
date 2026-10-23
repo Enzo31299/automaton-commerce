@@ -1,7 +1,14 @@
 import type { ExecutionResult, TradeIntent } from "./types.js";
 
+export interface ExecutionEstimate {
+  fillPrice: number;
+  notional: number;
+  fee: number;
+}
+
 export interface ExecutionAdapter {
   execute(intent: TradeIntent): Promise<ExecutionResult>;
+  estimate?(intent: TradeIntent): ExecutionEstimate;
 }
 
 export interface PaperExecutionConfig {
@@ -23,20 +30,23 @@ export class PaperExecutionAdapter implements ExecutionAdapter {
     }
   }
 
-  async execute(intent: TradeIntent): Promise<ExecutionResult> {
-    this.sequence += 1;
+  estimate(intent: TradeIntent): ExecutionEstimate {
     const slippageMultiplier = intent.side === "buy" ? 1 + this.slippageRate : 1 - this.slippageRate;
     const fillPrice = intent.price * slippageMultiplier;
     const notional = intent.quantity * fillPrice;
+    return { fillPrice, notional, fee: notional * this.feeRate };
+  }
+
+  async execute(intent: TradeIntent): Promise<ExecutionResult> {
+    this.sequence += 1;
+    const estimate = this.estimate(intent);
     return {
       id: `paper-${this.sequence}`,
       mode: "paper",
       symbol: intent.symbol,
       side: intent.side,
       quantity: intent.quantity,
-      fillPrice,
-      notional,
-      fee: notional * this.feeRate,
+      ...estimate,
       timestamp: Date.now(),
     };
   }
