@@ -17,10 +17,12 @@ export function createTraderPaperCycleTask(
   return async () => {
     for (const request of requests) {
       if (guard && marketData) {
-        const series = await marketData.getCandles({ ...request, limit: 1 });
+        // Fetch once for this heartbeat. The same series is used both to identify
+        // the latest candle and to evaluate the strategy, avoiding a second API call.
+        const series = await marketData.getCandles(request);
         const latest = series.candles.at(-1);
         if (!latest || !guard.shouldProcess(request.symbol, request.timeframe, latest.timestamp)) continue;
-        await runtime.tick(request);
+        await runtime.tick(request, series);
         guard.markProcessed(request.symbol, request.timeframe, latest.timestamp);
       } else {
         await runtime.tick(request);
