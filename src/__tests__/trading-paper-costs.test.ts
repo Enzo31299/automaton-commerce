@@ -49,8 +49,6 @@ describe("paper execution costs", () => {
     const afterSell = session.snapshot();
     expect(afterSell.positions["BTC-USD"]).toBeUndefined();
     expect(afterSell.cash).toBeCloseTo(155.8011);
-    // Entry fee is already embedded in averageEntryPrice, so realizedPnl after
-    // the round trip is net cash profit minus the separately tracked entry fee.
     expect(afterSell.realizedPnl).toBeCloseTo(4.791);
     expect(afterSell.dailyPnl).toBeCloseTo(4.791);
     expect(afterSell.equity).toBeCloseTo(155.8011);
@@ -66,5 +64,37 @@ describe("paper execution costs", () => {
     const result = await session.submit({ symbol: "BTC-USD", side: "buy", quantity: 1, price: 99 });
     expect(result).toBeNull();
     expect(session.snapshot()).toMatchObject({ cash: 100, trades: 0, blockedTrades: 1, openPositions: 0 });
+  });
+
+  it("includes expected fees and slippage in the hard position limit", async () => {
+    const tightLimits = { ...limits, maxPositionValue: 100 };
+    const session = new PaperTradingSession(
+      eligible,
+      150,
+      new TradingRiskEngine(tightLimits),
+      new PaperExecutionAdapter({ feeRate: 0.01, slippageRate: 0.01 }),
+    );
+    const result = await session.submit({ symbol: "BTC-USD", side: "buy", quantity: 1, price: 99 });
+    expect(result).toBeNull();
+    expect(session.snapshot()).toMatchObject({ cash: 150, trades: 0, blockedTrades: 1, openPositions: 0 });
+  });
+
+  it("includes expected fees and slippage in stop-loss risk", async () => {
+    const tightLimits = { ...limits, maxRiskPerTrade: 10 };
+    const session = new PaperTradingSession(
+      eligible,
+      150,
+      new TradingRiskEngine(tightLimits),
+      new PaperExecutionAdapter({ feeRate: 0.01, slippageRate: 0.01 }),
+    );
+    const result = await session.submit({
+      symbol: "BTC-USD",
+      side: "buy",
+      quantity: 1,
+      price: 100,
+      stopLossPrice: 91,
+    });
+    expect(result).toBeNull();
+    expect(session.snapshot()).toMatchObject({ cash: 150, trades: 0, blockedTrades: 1, openPositions: 0 });
   });
 });
