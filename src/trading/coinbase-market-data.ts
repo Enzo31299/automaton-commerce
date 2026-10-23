@@ -1,4 +1,4 @@
-import type { MarketDataProvider, MarketRequest, MarketSeries } from "./market-data.js";
+import { validateMarketSeries, type MarketDataProvider, type MarketRequest, type MarketSeries } from "./market-data.js";
 import type { Candle } from "./strategy.js";
 
 export type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
@@ -23,6 +23,15 @@ export class CoinbaseExchangeMarketDataProvider implements MarketDataProvider {
   async getCandles(request: MarketRequest): Promise<MarketSeries> {
     const granularity = GRANULARITY[request.timeframe];
     if (!granularity) throw new Error(`Unsupported Coinbase timeframe: ${request.timeframe}`);
+    if (!request.symbol.trim()) throw new Error("Coinbase market symbol is required");
+    if (request.start !== undefined && !Number.isFinite(request.start)) throw new Error("Invalid Coinbase start time");
+    if (request.end !== undefined && !Number.isFinite(request.end)) throw new Error("Invalid Coinbase end time");
+    if (request.start !== undefined && request.end !== undefined && request.start > request.end) {
+      throw new Error("Coinbase market start must not be after end");
+    }
+    if (request.limit !== undefined && (!Number.isInteger(request.limit) || request.limit <= 0)) {
+      throw new Error("Coinbase market limit must be a positive integer");
+    }
 
     const params = new URLSearchParams({ granularity: String(granularity) });
     if (request.start !== undefined) params.set("start", new Date(request.start * 1000).toISOString());
@@ -47,6 +56,8 @@ export class CoinbaseExchangeMarketDataProvider implements MarketDataProvider {
     }).sort((a, b) => a.timestamp - b.timestamp);
 
     if (request.limit !== undefined) candles = candles.slice(-request.limit);
-    return { symbol: request.symbol, timeframe: request.timeframe, candles, source: this.name };
+    const series = { symbol: request.symbol, timeframe: request.timeframe, candles, source: this.name };
+    validateMarketSeries(series);
+    return series;
   }
 }
