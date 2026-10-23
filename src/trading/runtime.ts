@@ -1,4 +1,4 @@
-import { PaperExecutionAdapter } from "./execution.js";
+import { PaperExecutionAdapter, type PaperExecutionConfig } from "./execution.js";
 import type { MarketDataProvider, MarketRequest, MarketSeries } from "./market-data.js";
 import { PaperTradingLoop } from "./paper-loop.js";
 import { PaperTradingSession } from "./paper-session.js";
@@ -17,6 +17,7 @@ export interface TraderRuntimeConfig {
   stopLossFraction?: number;
   riskLimits: RiskLimits;
   journalLimit?: number;
+  execution?: PaperExecutionConfig;
 }
 
 export interface TraderRuntime {
@@ -32,7 +33,7 @@ export function createPaperTraderRuntime(
   config: TraderRuntimeConfig,
 ): TraderRuntime {
   const risk = new TradingRiskEngine(config.riskLimits);
-  const execution = new PaperExecutionAdapter();
+  const execution = new PaperExecutionAdapter(config.execution);
   const portfolioStore = new PaperPortfolioStore(db);
   const restored = portfolioStore.load()?.state;
   const session = new PaperTradingSession(eligibility, config.initialEquity, risk, execution, restored);
