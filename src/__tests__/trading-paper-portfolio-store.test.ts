@@ -21,7 +21,17 @@ describe("paper portfolio persistence", () => {
   });
 
   it("rejects corrupt persisted state", () => {
-    const store = new PaperPortfolioStore({ getKV: () => JSON.stringify({ version: 1, state: { cash: "bad" } }), setKV: () => {} });
+    const bad = {
+      version: 1,
+      savedAt: "2026-01-01T00:00:00.000Z",
+      state: { cash: "bad" },
+    };
+    const store = new PaperPortfolioStore({ getKV: () => JSON.stringify(bad), setKV: () => {} });
     expect(() => store.load()).toThrow(/Corrupt/);
+  });
+
+  it("rejects unsupported persistence envelopes", () => {
+    const store = new PaperPortfolioStore({ getKV: () => JSON.stringify({ version: 1, state: {} }), setKV: () => {} });
+    expect(() => store.load()).toThrow(/Unsupported/);
   });
 });
