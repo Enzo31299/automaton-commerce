@@ -11,6 +11,7 @@ const candle = (close: number, timestamp: number): Candle => ({
 });
 
 const buyStrategy: Strategy = { name: "always-buy-test", signal: () => "buy" };
+const sellStrategy: Strategy = { name: "always-sell-test", signal: () => "sell" };
 const holdStrategy: Strategy = { name: "always-hold-test", signal: () => "hold" };
 
 function session(maxPositionValue = 50) {
@@ -54,5 +55,37 @@ describe("paper trading loop", () => {
     const result = await new PaperTradingLoop(provider, holdStrategy, session(), { quantity: 0.25 })
       .tick({ symbol: "BTC-USD", timeframe: "1d" });
     expect(result).toEqual({ signal: "hold", submitted: false, blocked: false });
+  });
+
+  it("turns repeated buy signals into hold while already long", async () => {
+    const provider = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1d", [candle(100, 1)]],
+    ]));
+    const paperSession = session();
+    const loop = new PaperTradingLoop(provider, buyStrategy, paperSession, { quantity: 0.25 });
+    expect((await loop.tick({ symbol: "BTC-USD", timeframe: "1d" })).submitted).toBe(true);
+    expect(await loop.tick({ symbol: "BTC-USD", timeframe: "1d" })).toEqual({ signal: "hold", submitted: false, blocked: false });
+    expect(paperSession.snapshot().positions["BTC-USD"]?.quantity).toBe(0.25);
+  });
+
+  it("turns sell into hold when there is no long position", async () => {
+    const provider = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1d", [candle(100, 1)]],
+    ]));
+    const result = await new PaperTradingLoop(provider, sellStrategy, session(), { quantity: 0.25 })
+      .tick({ symbol: "BTC-USD", timeframe: "1d" });
+    expect(result).toEqual({ signal: "hold", submitted: false, blocked: false });
+  });
+
+  it("closes the full long position on sell", async () => {
+    const provider = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1d", [candle(100, 1)]],
+    ]));
+    const paperSession = session();
+    await paperSession.submit({ symbol: "BTC-USD", side: "buy", quantity: 0.4, price: 100 });
+    const result = await new PaperTradingLoop(provider, sellStrategy, paperSession, { quantity: 0.25 })
+      .tick({ symbol: "BTC-USD", timeframe: "1d" });
+    expect(result).toMatchObject({ signal: "sell", submitted: true, blocked: false, price: 100 });
+    expect(paperSession.snapshot().positions["BTC-USD"]).toBeUndefined();
   });
 });
