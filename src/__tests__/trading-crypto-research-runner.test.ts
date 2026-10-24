@@ -53,6 +53,29 @@ describe("crypto research runner", () => {
     expect(result[0].rows.length).toBeGreaterThan(0);
   });
 
+  it("allows at most five missing intervals when the largest gap is also at most five", async () => {
+    const rows = syntheticRows(240, 3600).filter((row) => ![100, 101, 102, 103, 104].includes(row[0] / 3600));
+    const fetchFn = async () => ({ ok: true, status: 200, json: async () => rows });
+    const result = await runCryptoResearch({
+      ...researchConfig({ initialCapital: 150, feeRate: 0.001, allocationFraction: 0.25, slippageRate: 0.0005 }),
+      symbols: ["BTC-USD"],
+      timeframe: "1h",
+      end: 240 * 3600,
+    }, fetchFn as any);
+    expect(result).toHaveLength(1);
+  });
+
+  it("fails closed when historical gaps exceed the bounded research policy", async () => {
+    const rows = syntheticRows(240, 3600).filter((row) => ![100, 101, 102, 103, 104, 105].includes(row[0] / 3600));
+    const fetchFn = async () => ({ ok: true, status: 200, json: async () => rows });
+    await expect(runCryptoResearch({
+      ...researchConfig({ initialCapital: 150, feeRate: 0.001, allocationFraction: 0.25, slippageRate: 0.0005 }),
+      symbols: ["BTC-USD"],
+      timeframe: "1h",
+      end: 240 * 3600,
+    }, fetchFn as any)).rejects.toThrow(/missingIntervals=6, largestGapIntervals=6/);
+  });
+
   it("fails closed when research omits fees or slippage", async () => {
     await expect(runCryptoResearch(researchConfig({
       initialCapital: 150,
