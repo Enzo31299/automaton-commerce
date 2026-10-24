@@ -19,9 +19,11 @@ describe("research policy compatibility", () => {
       .toThrow(/slippage rate/);
   });
 
-  it("rejects capital drift", () => {
+  it("rejects capital and allocation drift", () => {
     expect(() => assertResearchPolicyCompatible(createPaperResearchPolicy(), config({ TRADER_INITIAL_EQUITY: "200" })))
       .toThrow(/capital/);
+    expect(() => assertResearchPolicyCompatible(createPaperResearchPolicy(), config({ TRADER_MAX_POSITION_VALUE: "30" })))
+      .toThrow(/allocation/);
   });
 
   it("rejects strategy, timeframe and market drift", () => {
