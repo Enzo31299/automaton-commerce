@@ -66,6 +66,10 @@ export class PaperTradingSession {
       return null;
     }
     const result = await this.execution.execute(intent);
+    if (!this.isValidFill(intent, result)) {
+      this.state.blockedTrades += 1;
+      return null;
+    }
     if (result.side === "buy" && result.notional + result.fee > this.state.cash) {
       this.state.blockedTrades += 1;
       return null;
@@ -79,10 +83,22 @@ export class PaperTradingSession {
     let marketValue = 0;
     for (const position of Object.values(this.state.positions)) {
       const price = prices[position.symbol];
-      if (Number.isFinite(price)) marketValue += position.quantity * price;
+      if (Number.isFinite(price) && price > 0) marketValue += position.quantity * price;
       else marketValue += position.quantity * position.averageEntryPrice;
     }
     this.state.equity = this.state.cash + marketValue;
+  }
+
+  private isValidFill(intent: TradeIntent, fill: ExecutionResult): boolean {
+    if (fill.mode !== "paper" || fill.symbol !== intent.symbol || fill.side !== intent.side) return false;
+    if (!Number.isFinite(fill.quantity) || fill.quantity <= 0 || fill.quantity > intent.quantity) return false;
+    if (!Number.isFinite(fill.fillPrice) || fill.fillPrice <= 0) return false;
+    if (!Number.isFinite(fill.notional) || fill.notional < 0) return false;
+    if (!Number.isFinite(fill.fee) || fill.fee < 0) return false;
+    if (!Number.isFinite(fill.timestamp)) return false;
+    const expectedNotional = fill.quantity * fill.fillPrice;
+    const tolerance = Math.max(1e-9, Math.abs(expectedNotional) * 1e-9);
+    return Math.abs(fill.notional - expectedNotional) <= tolerance;
   }
 
   private applyFill(fill: ExecutionResult): void {
