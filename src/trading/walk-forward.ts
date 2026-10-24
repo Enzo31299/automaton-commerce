@@ -23,7 +23,9 @@ export function walkForward(
   trainSize: number,
   testSize: number,
 ): WalkForwardResult {
-  if (trainSize < 1 || testSize < 1) throw new Error("trainSize and testSize must be positive");
+  if (!Number.isSafeInteger(trainSize) || trainSize < 1 || !Number.isSafeInteger(testSize) || testSize < 1) {
+    throw new Error("trainSize and testSize must be positive safe integers");
+  }
 
   const windows: WalkForwardWindow[] = [];
   for (let trainStart = 0; trainStart + trainSize + testSize <= candles.length; trainStart += testSize) {
