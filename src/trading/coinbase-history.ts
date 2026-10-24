@@ -33,14 +33,21 @@ function retryableStatus(status: number): boolean {
 
 async function fetchChunk(url: string, fetchFn: FetchLike, sleep: Sleep): Promise<number[][]> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    let response;
     try {
-      const response = await fetchFn(url, { headers: { Accept: "application/json" } });
-      if (response.ok) return await response.json() as number[][];
-      if (!retryableStatus(response.status) || attempt === MAX_ATTEMPTS) {
-        throw new Error(`Coinbase historical request failed: ${response.status}`);
-      }
+      response = await fetchFn(url, { headers: { Accept: "application/json" } });
     } catch (error) {
       if (attempt === MAX_ATTEMPTS) throw error;
+      await sleep(250 * 2 ** (attempt - 1));
+      continue;
+    }
+
+    if (response.ok) return await response.json() as number[][];
+    if (!retryableStatus(response.status)) {
+      throw new Error(`Coinbase historical request failed: ${response.status}`);
+    }
+    if (attempt === MAX_ATTEMPTS) {
+      throw new Error(`Coinbase historical request failed: ${response.status}`);
     }
     await sleep(250 * 2 ** (attempt - 1));
   }
