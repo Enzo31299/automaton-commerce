@@ -28,12 +28,7 @@ async function main(): Promise<void> {
       slippageRate: policy.slippageRate,
       allocationFraction: policy.allocationFraction,
     },
-    gate: {
-      minWindows: 4,
-      minProfitableWindowRatio: 0.5,
-      maxDrawdownPct: 10,
-      minAverageTestReturnPct: 0,
-    },
+    gate: policy.gate,
   });
 
   const db = createDatabase(dbPath);
