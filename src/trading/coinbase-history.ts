@@ -5,6 +5,9 @@ const GRANULARITY_SECONDS: Record<string, number> = {
   "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "6h": 21600, "1d": 86400,
 };
 const MAX_ATTEMPTS = 3;
+// Unix seconds remain below this until year 2286. This deliberately rejects
+// JavaScript millisecond timestamps, which are roughly 1e12 today.
+const MAX_UNIX_SECONDS = 10_000_000_000;
 
 export interface HistoricalDownloadRequest {
   symbol: string;
@@ -21,8 +24,9 @@ function defaultSleep(ms: number): Promise<void> {
 
 function validateRequest(request: HistoricalDownloadRequest): void {
   if (!request.symbol.trim()) throw new Error("Historical symbol is required");
-  if (!Number.isSafeInteger(request.start) || request.start < 0 || !Number.isSafeInteger(request.end) || request.end < 1) {
-    throw new Error("Historical start and end must be non-negative Unix epoch seconds");
+  if (!Number.isSafeInteger(request.start) || request.start < 0 || request.start > MAX_UNIX_SECONDS
+    || !Number.isSafeInteger(request.end) || request.end < 1 || request.end > MAX_UNIX_SECONDS) {
+    throw new Error("Historical start and end must be valid Unix epoch seconds");
   }
   if (request.end <= request.start) throw new Error("Historical end must be after start");
 }
