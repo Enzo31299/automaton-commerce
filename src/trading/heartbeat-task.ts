@@ -22,8 +22,14 @@ export function createTraderPaperCycleTask(
         const series = await marketData.getCandles(request);
         const latest = series.candles.at(-1);
         if (!latest || !guard.shouldProcess(request.symbol, request.timeframe, latest.timestamp)) continue;
-        await runtime.tick(request, series);
+
+        // Claim the candle before handing it to the runtime. If the process crashes
+        // after a paper fill but before the heartbeat returns, a restart must not
+        // replay the same candle and mutate simulated capital twice. This is
+        // intentionally fail-closed: an interrupted candle may be skipped rather
+        // than risk duplicate execution.
         guard.markProcessed(request.symbol, request.timeframe, latest.timestamp);
+        await runtime.tick(request, series);
       } else {
         await runtime.tick(request);
       }
