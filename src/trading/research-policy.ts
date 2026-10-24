@@ -8,6 +8,12 @@ export const PAPER_RESEARCH_ALLOCATION_FRACTION = 0.25;
 export const PAPER_RESEARCH_INITIAL_CAPITAL = 150;
 export const PAPER_RESEARCH_TRAIN_SIZE = 24 * 30;
 export const PAPER_RESEARCH_TEST_SIZE = 24 * 14;
+export const PAPER_RESEARCH_GATE = Object.freeze({
+  minWindows: 4,
+  minProfitableWindowRatio: 0.5,
+  maxDrawdownPct: 10,
+  minAverageTestReturnPct: 0,
+});
 
 export interface PaperResearchPolicy {
   schemaVersion: typeof PAPER_RESEARCH_SCHEMA_VERSION;
@@ -20,6 +26,12 @@ export interface PaperResearchPolicy {
   initialCapital: number;
   trainSize: number;
   testSize: number;
+  gate: {
+    minWindows: number;
+    minProfitableWindowRatio: number;
+    maxDrawdownPct: number;
+    minAverageTestReturnPct: number;
+  };
 }
 
 export function createPaperResearchPolicy(): PaperResearchPolicy {
@@ -34,5 +46,6 @@ export function createPaperResearchPolicy(): PaperResearchPolicy {
     initialCapital: PAPER_RESEARCH_INITIAL_CAPITAL,
     trainSize: PAPER_RESEARCH_TRAIN_SIZE,
     testSize: PAPER_RESEARCH_TEST_SIZE,
+    gate: { ...PAPER_RESEARCH_GATE },
   };
 }
