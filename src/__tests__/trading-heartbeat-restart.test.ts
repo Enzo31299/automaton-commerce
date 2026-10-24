@@ -38,7 +38,9 @@ describe("trader heartbeat restart idempotency", () => {
       throw new Error("simulated interruption after execution started");
     });
     const first = createTraderPaperCycleTask({ tick: failingTick, snapshot: () => ({} as any) }, [{ symbol: "BTC-USD", timeframe: "1h" }], market, db);
-    await expect(first({} as any, {} as any)).rejects.toThrow(/simulated interruption/);
+    const result = await first({} as any, {} as any);
+    expect(result.shouldWake).toBe(true);
+    expect(result.message).toMatch(/1 market/);
     expect(failingTick).toHaveBeenCalledTimes(1);
     expect(kv.get("trader:last_candle:BTC-USD:1h")).toBe("200");
 
@@ -46,5 +48,30 @@ describe("trader heartbeat restart idempotency", () => {
     const restarted = createTraderPaperCycleTask({ tick: restartedTick, snapshot: () => ({} as any) }, [{ symbol: "BTC-USD", timeframe: "1h" }], market, db);
     await restarted({} as any, {} as any);
     expect(restartedTick).not.toHaveBeenCalled();
+  });
+
+  it("continues with other paper markets when one market fails", async () => {
+    const kv = new Map<string, string>();
+    const db = { getKV: (k: string) => kv.get(k), setKV: (k: string, v: string) => { kv.set(k, v); } };
+    const market = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1h", [{ timestamp: 300, open: 10, high: 11, low: 9, close: 10 }]],
+      ["ETH-USD:1h", [{ timestamp: 300, open: 20, high: 21, low: 19, close: 20 }]],
+    ]));
+    const tick = vi.fn(async (request) => {
+      if (request.symbol === "BTC-USD") throw new Error("simulated BTC failure");
+    });
+    const task = createTraderPaperCycleTask(
+      { tick, snapshot: () => ({} as any) },
+      [{ symbol: "BTC-USD", timeframe: "1h" }, { symbol: "ETH-USD", timeframe: "1h" }],
+      market,
+      db,
+    );
+
+    const result = await task({} as any, {} as any);
+    expect(tick).toHaveBeenCalledTimes(2);
+    expect(tick.mock.calls.map(([request]) => request.symbol)).toEqual(["BTC-USD", "ETH-USD"]);
+    expect(result.shouldWake).toBe(true);
+    expect(kv.get("trader:last_candle:BTC-USD:1h")).toBe("300");
+    expect(kv.get("trader:last_candle:ETH-USD:1h")).toBe("300");
   });
 });
