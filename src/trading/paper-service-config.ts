@@ -1,8 +1,10 @@
+import type { PaperExecutionConfig } from "./execution.js";
 import type { MarketRequest } from "./market-data.js";
 import type { RiskLimits } from "./types.js";
 
 export const PAPER_SERVICE_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD"] as const;
 export const PAPER_SERVICE_TIMEFRAME = "1h" as const;
+export const PAPER_SERVICE_STRATEGY = "momentum-20-2" as const;
 
 export interface PaperServiceConfig {
   dbPath: string;
@@ -11,6 +13,7 @@ export interface PaperServiceConfig {
   pollIntervalMs: number;
   requests: MarketRequest[];
   riskLimits: RiskLimits;
+  execution: Required<PaperExecutionConfig>;
 }
 
 function positiveFinite(value: number): boolean {
@@ -24,10 +27,16 @@ export function createPaperServiceConfig(env: NodeJS.ProcessEnv = process.env): 
   const initialEquity = Number(env.TRADER_INITIAL_EQUITY ?? "150");
   const quantity = Number(env.TRADER_QUANTITY ?? "0.001");
   const pollIntervalMs = Number(env.TRADER_POLL_INTERVAL_MS ?? "60000");
+  const feeRate = Number(env.TRADER_FEE_RATE ?? "0.001");
+  const slippageRate = Number(env.TRADER_SLIPPAGE_RATE ?? "0.0005");
   if (!positiveFinite(initialEquity)) throw new Error("TRADER_INITIAL_EQUITY must be positive and finite");
   if (!positiveFinite(quantity)) throw new Error("TRADER_QUANTITY must be positive and finite");
   if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 10_000) {
     throw new Error("TRADER_POLL_INTERVAL_MS must be a safe integer >= 10000");
+  }
+  if (!positiveFinite(feeRate) || feeRate >= 1) throw new Error("TRADER_FEE_RATE must be finite and in (0, 1)");
+  if (!positiveFinite(slippageRate) || slippageRate >= 1) {
+    throw new Error("TRADER_SLIPPAGE_RATE must be finite and in (0, 1)");
   }
 
   const allowedSymbols = [...PAPER_SERVICE_SYMBOLS];
@@ -49,5 +58,6 @@ export function createPaperServiceConfig(env: NodeJS.ProcessEnv = process.env): 
     pollIntervalMs,
     requests: allowedSymbols.map((symbol) => ({ symbol, timeframe: PAPER_SERVICE_TIMEFRAME, limit: 300 })),
     riskLimits: { maxPositionValue, maxRiskPerTrade, maxDailyLoss, maxOpenPositions, allowedSymbols },
+    execution: { feeRate, slippageRate },
   };
 }
