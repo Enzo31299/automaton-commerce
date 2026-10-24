@@ -46,7 +46,7 @@ async function main(): Promise<void> {
       execution: config.execution,
     });
     const task = createTraderPaperCycleTask(runtime, config.requests, marketData, db);
-    const service = createPaperServiceLoop(task, config.pollIntervalMs);
+    const service = createPaperServiceLoop(task, config.pollIntervalMs, undefined, config.maxConsecutiveTotalFailures);
 
     console.log(JSON.stringify({
       event: "paper_service_started",
@@ -56,6 +56,7 @@ async function main(): Promise<void> {
       timeframe: "1h",
       researchCreatedAt: research.createdAt,
       researchPolicySchema: research.policy.schemaVersion,
+      maxConsecutiveTotalFailures: config.maxConsecutiveTotalFailures,
     }));
     await service.run(controller.signal);
   } finally {
