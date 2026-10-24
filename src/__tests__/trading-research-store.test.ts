@@ -19,7 +19,12 @@ describe("research store", () => {
     saveResearchRun(db, result, policy, "2026-01-01T00:00:00.000Z");
     expect(loadResearchRun(db)).toMatchObject({
       createdAt: "2026-01-01T00:00:00.000Z",
-      policy: { schemaVersion: 1, strategy: "momentum-20-2", timeframe: "1h" },
+      policy: {
+        schemaVersion: 1,
+        strategy: "momentum-20-2",
+        timeframe: "1h",
+        gate: { minWindows: 4, minProfitableWindowRatio: 0.5, maxDrawdownPct: 10, minAverageTestReturnPct: 0 },
+      },
       results: policy.symbols.map((symbol) => ({ symbol })),
     });
   });
@@ -54,5 +59,20 @@ describe("research store", () => {
   it("rejects research whose stored policy markets do not match its results", () => {
     const db = memoryDb();
     expect(() => saveResearchRun(db, result.slice(0, 1), policy)).toThrow(/policy does not match/);
+  });
+
+  it("rejects missing or corrupted persisted OOS gate metadata", () => {
+    const variants = [
+      { ...policy, gate: undefined },
+      { ...policy, gate: { ...policy.gate, minWindows: 0 } },
+      { ...policy, gate: { ...policy.gate, minProfitableWindowRatio: 1.1 } },
+      { ...policy, gate: { ...policy.gate, maxDrawdownPct: -1 } },
+      { ...policy, gate: { ...policy.gate, minAverageTestReturnPct: Number.NaN } },
+    ];
+
+    for (const corrupted of variants) {
+      const db = memoryDb();
+      expect(() => saveResearchRun(db, result, corrupted as typeof policy)).toThrow(/invalid/);
+    }
   });
 });
