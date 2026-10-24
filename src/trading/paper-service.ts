@@ -1,11 +1,16 @@
-import type { HeartbeatTaskFn } from "../types.js";
+export interface PaperServiceCycleResult {
+  shouldWake: boolean;
+  message?: string;
+}
+
+export type PaperServiceCycleTask = () => Promise<PaperServiceCycleResult>;
 
 export interface PaperServiceLoop {
   run(signal?: AbortSignal): Promise<void>;
 }
 
 export function createPaperServiceLoop(
-  task: HeartbeatTaskFn,
+  task: PaperServiceCycleTask,
   pollIntervalMs: number,
   sleep: (ms: number, signal?: AbortSignal) => Promise<void> = defaultSleep,
 ): PaperServiceLoop {
