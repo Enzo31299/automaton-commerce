@@ -1,9 +1,7 @@
 import { createDatabase } from "../state/database.js";
 import { runCryptoResearch } from "./crypto-research-runner.js";
 import { saveResearchRun } from "./research-store.js";
-
-const HOUR_SECONDS = 60 * 60;
-const DAY_SECONDS = 24 * HOUR_SECONDS;
+import { createHourlyResearchWindow } from "./research-window.js";
 
 function requiredPath(env: NodeJS.ProcessEnv): string {
   const value = env.TRADER_DB_PATH?.trim();
@@ -13,11 +11,7 @@ function requiredPath(env: NodeJS.ProcessEnv): string {
 
 async function main(): Promise<void> {
   const dbPath = requiredPath(process.env);
-  // Historical download APIs and candle timestamps use Unix epoch seconds.
-  // Stop at the previous completed hour to avoid researching a partial candle.
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const end = Math.floor((nowSeconds - HOUR_SECONDS) / HOUR_SECONDS) * HOUR_SECONDS;
-  const start = end - 180 * DAY_SECONDS;
+  const { start, end } = createHourlyResearchWindow(Date.now());
 
   const results = await runCryptoResearch({
     symbols: ["BTC-USD", "ETH-USD", "SOL-USD"],
