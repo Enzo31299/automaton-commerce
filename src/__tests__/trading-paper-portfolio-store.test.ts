@@ -14,6 +14,29 @@ describe("paper portfolio persistence", () => {
     expect(store.load()).toMatchObject({ version: 1, savedAt: "2026-01-01T00:00:00.000Z", state });
   });
 
+  it("rejects corrupt state before writing it", () => {
+    const kv = new Map<string, string>();
+    const store = new PaperPortfolioStore({ getKV: (k) => kv.get(k), setKV: (k, v) => { kv.set(k, v); } });
+    const bad = {
+      initialEquity: 150, equity: 90, cash: 100, realizedPnl: 0, dailyPnl: 0,
+      openPositions: 1, trades: 1, blockedTrades: 0,
+      positions: { "BTC-USD": { symbol: "BTC-USD", quantity: 0.5, averageEntryPrice: 100 } },
+    };
+    expect(() => store.save(bad)).toThrow(/portfolio equity/);
+    expect(kv.size).toBe(0);
+  });
+
+  it("rejects invalid save timestamps before writing", () => {
+    const kv = new Map<string, string>();
+    const store = new PaperPortfolioStore({ getKV: (k) => kv.get(k), setKV: (k, v) => { kv.set(k, v); } });
+    const state = {
+      initialEquity: 150, equity: 150, cash: 150, realizedPnl: 0, dailyPnl: 0,
+      openPositions: 0, trades: 0, blockedTrades: 0, positions: {},
+    };
+    expect(() => store.save(state, "not-a-date")).toThrow(/savedAt/);
+    expect(kv.size).toBe(0);
+  });
+
   it("rejects inconsistent position counts", () => {
     const bad = { version: 1, savedAt: "2026-01-01T00:00:00.000Z", state: { initialEquity: 150, equity: 150, cash: 100, realizedPnl: 0, dailyPnl: 0, openPositions: 0, trades: 1, blockedTrades: 0, positions: { "BTC-USD": { symbol: "BTC-USD", quantity: 0.5, averageEntryPrice: 100 } } } };
     const store = new PaperPortfolioStore({ getKV: () => JSON.stringify(bad), setKV: () => {} });
