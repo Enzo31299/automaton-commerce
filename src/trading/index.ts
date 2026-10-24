@@ -54,3 +54,4 @@ export * from "./paper-portfolio-store.js";
 export * from "./heartbeat-task.js";
 export * from "./heartbeat-config.js";
 export * from "./candle-processing-guard.js";
+export * from "./vps-health.js";
