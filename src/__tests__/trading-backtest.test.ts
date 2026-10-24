@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { backtest } from "../trading/backtest.js";
-import { MovingAverageCrossStrategy, type Candle } from "../trading/strategy.js";
+import { MovingAverageCrossStrategy, type Candle, type Strategy } from "../trading/strategy.js";
 
 function candles(prices: number[]): Candle[] {
   return prices.map((close, index) => ({
@@ -31,6 +31,26 @@ describe("trading research", () => {
     expect(Number.isFinite(result.netReturnPct)).toBe(true);
     expect(result.maxDrawdownPct).toBeGreaterThanOrEqual(0);
     expect(result.trades).toBeGreaterThanOrEqual(0);
+  });
+
+  it("executes a close-derived signal only at the next candle open", () => {
+    const sample: Candle[] = [
+      { timestamp: 0, open: 100, high: 100, low: 100, close: 100 },
+      { timestamp: 1, open: 200, high: 200, low: 200, close: 200 },
+    ];
+    const buyImmediately: Strategy = { signal: () => "buy" };
+    const result = backtest(sample, buyImmediately, { initialCapital: 100, feeRate: 0, allocationFraction: 1 });
+
+    // If the signal were incorrectly filled on the signal candle close (100),
+    // final equity would be 200. A next-open fill at 200 leaves it at 100.
+    expect(result.finalEquity).toBe(100);
+  });
+
+  it("does not execute a signal when there is no following candle", () => {
+    const buyImmediately: Strategy = { signal: () => "buy" };
+    const result = backtest(candles([100]), buyImmediately, { initialCapital: 100, feeRate: 0, allocationFraction: 1 });
+    expect(result.finalEquity).toBe(100);
+    expect(result.trades).toBe(0);
   });
 
   it("rejects invalid capital, fees, allocation, and evaluation boundaries", () => {
