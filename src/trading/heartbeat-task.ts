@@ -1,16 +1,22 @@
-import type { HeartbeatTaskFn } from "../types.js";
 import type { MarketRequest } from "./market-data.js";
 import type { TraderRuntime } from "./runtime.js";
 import type { MarketDataProvider } from "./market-data.js";
 import { CandleProcessingGuard } from "./candle-processing-guard.js";
 import type { KeyValueDatabase } from "./sqlite-journal.js";
 
+export interface TraderPaperCycleResult {
+  shouldWake: boolean;
+  message?: string;
+}
+
+export type TraderPaperCycleTask = () => Promise<TraderPaperCycleResult>;
+
 export function createTraderPaperCycleTask(
   runtime: TraderRuntime,
   requests: readonly MarketRequest[],
   marketData?: MarketDataProvider,
   db?: KeyValueDatabase,
-): HeartbeatTaskFn {
+): TraderPaperCycleTask {
   if (requests.length === 0) throw new Error("Trader paper cycle requires at least one market");
   if ((marketData && !db) || (!marketData && db)) throw new Error("marketData and db must be provided together");
   const guard = db ? new CandleProcessingGuard(db) : undefined;
