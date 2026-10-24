@@ -55,10 +55,52 @@ describe("paper trader runtime", () => {
     await expect(runtime.tick({ symbol: "BTC-USD", timeframe: "1d" })).rejects.toThrow(/journal failure/);
     expect(runtime.snapshot().trades).toBe(1);
     expect(store.has("trader:paper:portfolio")).toBe(true);
+    expect(store.has("trader:last_tick")).toBe(false);
 
     const restarted = createPaperTraderRuntime(db, market, strategy, { eligible: true, reasons: [] }, runtimeConfig());
     expect(restarted.snapshot().trades).toBe(1);
     expect(restarted.snapshot().positions["BTC-USD"]?.quantity).toBeCloseTo(0.25, 8);
+  });
+
+  it("does not publish last_tick when portfolio persistence fails", async () => {
+    const store = new Map<string, string>();
+    const db = {
+      getKV: (k: string) => store.get(k),
+      setKV: (k: string, v: string) => {
+        if (k === "trader:paper:portfolio") throw new Error("simulated portfolio failure");
+        store.set(k, v);
+      },
+    };
+    const market = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1d", [{ timestamp: 1, open: 100, high: 100, low: 100, close: 100 }]],
+    ]));
+    const runtime = createPaperTraderRuntime(db, market, strategy, { eligible: true, reasons: [] }, runtimeConfig());
+
+    await expect(runtime.tick({ symbol: "BTC-USD", timeframe: "1d" })).rejects.toThrow(/portfolio failure/);
+    expect(store.has("trader:last_tick")).toBe(false);
+  });
+
+  it("preserves the original heartbeat error when portfolio persistence also fails", async () => {
+    const store = new Map<string, string>();
+    let journalWrites = 0;
+    const db = {
+      getKV: (k: string) => store.get(k),
+      setKV: (k: string, v: string) => {
+        if (k === "trader:journal") {
+          journalWrites += 1;
+          if (journalWrites === 2) throw new Error("original journal failure");
+        }
+        if (k === "trader:paper:portfolio") throw new Error("secondary portfolio failure");
+        store.set(k, v);
+      },
+    };
+    const market = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1d", [{ timestamp: 1, open: 100, high: 100, low: 100, close: 100 }]],
+    ]));
+    const runtime = createPaperTraderRuntime(db, market, strategy, { eligible: true, reasons: [] }, runtimeConfig());
+
+    await expect(runtime.tick({ symbol: "BTC-USD", timeframe: "1d" })).rejects.toThrow(/original journal failure/);
+    expect(store.has("trader:last_tick")).toBe(false);
   });
 
   it("applies configured paper fees and slippage through the assembled runtime", async () => {
