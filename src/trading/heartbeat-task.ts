@@ -17,29 +17,38 @@ export function createTraderPaperCycleTask(
   return async () => {
     let failedMarkets = 0;
     for (const request of requests) {
-      try {
-        if (guard && marketData) {
-          // Fetch once for this heartbeat. The same series is used both to identify
-          // the latest candle and to evaluate the strategy, avoiding a second API call.
-          const series = await marketData.getCandles(request);
-          const latest = series.candles.at(-1);
-          if (!latest || !guard.shouldProcess(request.symbol, request.timeframe, latest.timestamp)) continue;
-
-          // Claim the candle before handing it to the runtime. If the process crashes
-          // after a paper fill but before the heartbeat returns, a restart must not
-          // replay the same candle and mutate simulated capital twice. This is
-          // intentionally fail-closed: an interrupted candle may be skipped rather
-          // than risk duplicate execution.
-          guard.markProcessed(request.symbol, request.timeframe, latest.timestamp);
-          await runtime.tick(request, series);
-        } else {
-          await runtime.tick(request);
+      if (guard && marketData) {
+        let series;
+        try {
+          // Provider failures are market-local: another market can still be evaluated.
+          series = await marketData.getCandles(request);
+        } catch {
+          failedMarkets += 1;
+          continue;
         }
-      } catch {
-        // A single provider/runtime failure must not prevent the remaining paper
-        // markets from being evaluated. The failed market stays fail-closed when
-        // its candle was already claimed, while the heartbeat asks the host to wake.
-        failedMarkets += 1;
+
+        const latest = series.candles.at(-1);
+        if (!latest) continue;
+
+        // Checkpoint reads/writes are process-level safety state. Corruption or
+        // persistence failure must stop the cycle rather than being downgraded to
+        // a market-local failure, otherwise restart idempotency cannot be trusted.
+        if (!guard.shouldProcess(request.symbol, request.timeframe, latest.timestamp)) continue;
+        guard.markProcessed(request.symbol, request.timeframe, latest.timestamp);
+
+        try {
+          await runtime.tick(request, series);
+        } catch {
+          // Runtime failures after a successful claim remain market-local. The
+          // claimed candle stays fail-closed to avoid duplicate paper execution.
+          failedMarkets += 1;
+        }
+      } else {
+        try {
+          await runtime.tick(request);
+        } catch {
+          failedMarkets += 1;
+        }
       }
     }
     return {
