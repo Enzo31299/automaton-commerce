@@ -103,9 +103,11 @@ describe("paper trading loop", () => {
     const provider = new InMemoryMarketDataProvider(new Map([
       ["BTC-USD:1d", [candle(0, 1)]],
     ]));
-    const result = await new PaperTradingLoop(provider, buyStrategy, session(), { quantity: 0.25 })
+    const paperSession = session();
+    const before = paperSession.snapshot();
+    const result = await new PaperTradingLoop(provider, buyStrategy, paperSession, { quantity: 0.25 })
       .tick({ symbol: "BTC-USD", timeframe: "1d" });
     expect(result).toMatchObject({ signal: "buy", submitted: false, blocked: true, price: 0 });
-    expect(session().snapshot().trades).toBe(0);
+    expect(paperSession.snapshot()).toEqual(before);
   });
 });
