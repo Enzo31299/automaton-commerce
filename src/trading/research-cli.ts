@@ -2,8 +2,8 @@ import { createDatabase } from "../state/database.js";
 import { runCryptoResearch } from "./crypto-research-runner.js";
 import { saveResearchRun } from "./research-store.js";
 
-const HOUR = 60 * 60 * 1000;
-const DAY = 24 * HOUR;
+const HOUR_SECONDS = 60 * 60;
+const DAY_SECONDS = 24 * HOUR_SECONDS;
 
 function requiredPath(env: NodeJS.ProcessEnv): string {
   const value = env.TRADER_DB_PATH?.trim();
@@ -13,8 +13,11 @@ function requiredPath(env: NodeJS.ProcessEnv): string {
 
 async function main(): Promise<void> {
   const dbPath = requiredPath(process.env);
-  const end = Math.floor((Date.now() - HOUR) / HOUR) * HOUR;
-  const start = end - 180 * DAY;
+  // Historical download APIs and candle timestamps use Unix epoch seconds.
+  // Stop at the previous completed hour to avoid researching a partial candle.
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const end = Math.floor((nowSeconds - HOUR_SECONDS) / HOUR_SECONDS) * HOUR_SECONDS;
+  const start = end - 180 * DAY_SECONDS;
 
   const results = await runCryptoResearch({
     symbols: ["BTC-USD", "ETH-USD", "SOL-USD"],
@@ -44,8 +47,8 @@ async function main(): Promise<void> {
       event: "trader_research_complete",
       mode: "paper",
       timeframe: "1h",
-      start: new Date(start).toISOString(),
-      end: new Date(end).toISOString(),
+      start: new Date(start * 1000).toISOString(),
+      end: new Date(end * 1000).toISOString(),
       createdAt: stored.createdAt,
       results,
     }, null, 2));
