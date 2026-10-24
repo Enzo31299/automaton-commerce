@@ -35,16 +35,18 @@ export function inspectCandleQuality(
     if (delta < 0) {
       return { candles: candles.length, duplicateTimestamps, missingIntervals, largestGapIntervals, irregularIntervals, valid: false };
     }
-    if (delta !== intervalSeconds) {
-      irregularIntervals += 1;
-    }
-    if (delta > intervalSeconds) {
-      // floor is deliberately conservative: a partial extra interval is still
-      // an irregular gap, but it must not be rounded into a fictitious full
-      // missing candle.
-      const gapIntervals = Math.max(0, Math.floor(delta / intervalSeconds) - 1);
+
+    if (delta > intervalSeconds && delta % intervalSeconds === 0) {
+      // A whole-number gap is still aligned to the requested timeframe. Count
+      // the absent candles separately so maxMissingIntervals can intentionally
+      // tolerate small data holes without classifying them as malformed timing.
+      const gapIntervals = (delta / intervalSeconds) - 1;
       missingIntervals += gapIntervals;
       largestGapIntervals = Math.max(largestGapIntervals, gapIntervals);
+    } else if (delta !== intervalSeconds) {
+      // Partial or otherwise off-grid intervals are malformed timing rather
+      // than known missing whole candles and are never tolerated.
+      irregularIntervals += 1;
     }
   }
 
