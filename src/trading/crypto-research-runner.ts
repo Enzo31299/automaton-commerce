@@ -25,10 +25,21 @@ export interface CryptoResearchMarketResult {
   decisions: Record<string, PaperTradingDecision>;
 }
 
+function validateResearchCosts(config: BacktestConfig): void {
+  if (!Number.isFinite(config.feeRate) || config.feeRate <= 0) {
+    throw new Error("Crypto research requires a positive feeRate");
+  }
+  if (!Number.isFinite(config.slippageRate) || config.slippageRate === undefined || config.slippageRate <= 0) {
+    throw new Error("Crypto research requires a positive slippageRate");
+  }
+}
+
 export async function runCryptoResearch(
   config: CryptoResearchRunnerConfig,
   fetchFn?: FetchLike,
 ): Promise<CryptoResearchMarketResult[]> {
+  validateResearchCosts(config.backtest);
+
   const results: CryptoResearchMarketResult[] = [];
   for (const symbol of config.symbols) {
     const candles = await downloadCoinbaseHistory({
