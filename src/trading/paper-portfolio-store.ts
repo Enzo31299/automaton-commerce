@@ -48,6 +48,10 @@ function validateState(state: unknown): asserts state is PaperSessionState {
   }
 }
 
+function validateSavedAt(savedAt: string): void {
+  if (!Number.isFinite(Date.parse(savedAt))) throw new Error("Invalid paper portfolio savedAt");
+}
+
 export class PaperPortfolioStore {
   constructor(
     private readonly db: KeyValueDatabase,
@@ -55,6 +59,10 @@ export class PaperPortfolioStore {
   ) {}
 
   save(state: PaperSessionState, savedAt = new Date().toISOString()): void {
+    // Refuse to persist a corrupt in-memory snapshot. This keeps restart data
+    // fail-closed instead of discovering the corruption only on the next load.
+    validateState(state);
+    validateSavedAt(savedAt);
     const payload: StoredPaperPortfolio = { version: 1, savedAt, state };
     this.db.setKV(this.key, JSON.stringify(payload));
   }
