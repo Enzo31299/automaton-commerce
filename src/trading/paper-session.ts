@@ -29,7 +29,7 @@ export class PaperTradingSession {
     restoredState?: PaperSessionState,
   ) {
     if (!eligibility.eligible) throw new Error(`Research gate blocked paper trading: ${eligibility.reasons.join(",")}`);
-    if (initialEquity <= 0) throw new Error("Initial equity must be positive");
+    if (!Number.isFinite(initialEquity) || initialEquity <= 0) throw new Error("Initial equity must be finite and positive");
     this.state = restoredState ? structuredClone(restoredState) : {
       initialEquity, equity: initialEquity, cash: initialEquity, realizedPnl: 0,
       dailyPnl: 0, openPositions: 0, trades: 0, blockedTrades: 0, positions: {},
@@ -132,10 +132,13 @@ export class PaperTradingSession {
 
   recordPnl(pnl: number): void {
     if (!Number.isFinite(pnl)) throw new Error("PnL must be finite");
-    this.state.cash += pnl;
+    const nextCash = this.state.cash + pnl;
+    const nextEquity = this.state.equity + pnl;
+    if (nextCash < 0 || nextEquity < 0) throw new Error("PnL cannot make paper capital negative");
+    this.state.cash = nextCash;
     this.state.realizedPnl += pnl;
     this.state.dailyPnl += pnl;
-    this.state.equity += pnl;
+    this.state.equity = nextEquity;
   }
 
   resetDailyPnl(): void { this.state.dailyPnl = 0; }
