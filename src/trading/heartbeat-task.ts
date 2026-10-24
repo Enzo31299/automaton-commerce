@@ -6,6 +6,8 @@ import type { KeyValueDatabase } from "./sqlite-journal.js";
 
 export interface TraderPaperCycleResult {
   shouldWake: boolean;
+  failedMarkets: number;
+  totalMarkets: number;
   message?: string;
 }
 
@@ -34,7 +36,12 @@ export function createTraderPaperCycleTask(
         }
 
         const latest = series.candles.at(-1);
-        if (!latest) continue;
+        if (!latest) {
+          // Empty data is operationally equivalent to a provider failure: no
+          // market decision can be made and liveness must not look healthy.
+          failedMarkets += 1;
+          continue;
+        }
 
         // Checkpoint reads/writes are process-level safety state. Corruption or
         // persistence failure must stop the cycle rather than being downgraded to
@@ -59,6 +66,8 @@ export function createTraderPaperCycleTask(
     }
     return {
       shouldWake: failedMarkets > 0,
+      failedMarkets,
+      totalMarkets: requests.length,
       ...(failedMarkets > 0 ? { message: `Trader paper cycle failed for ${failedMarkets} market(s)` } : {}),
     };
   };
