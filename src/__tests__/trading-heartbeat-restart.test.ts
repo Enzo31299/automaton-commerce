@@ -50,7 +50,7 @@ describe("trader heartbeat restart idempotency", () => {
     expect(restartedTick).not.toHaveBeenCalled();
   });
 
-  it("continues with other paper markets when one market fails", async () => {
+  it("continues with other paper markets when one runtime fails", async () => {
     const kv = new Map<string, string>();
     const db = { getKV: (k: string) => kv.get(k), setKV: (k: string, v: string) => { kv.set(k, v); } };
     const market = new InMemoryMarketDataProvider(new Map([
@@ -73,5 +73,65 @@ describe("trader heartbeat restart idempotency", () => {
     expect(result.shouldWake).toBe(true);
     expect(kv.get("trader:last_candle:BTC-USD:1h")).toBe("300");
     expect(kv.get("trader:last_candle:ETH-USD:1h")).toBe("300");
+  });
+
+  it("continues with another market when a provider request fails before checkpointing", async () => {
+    const kv = new Map<string, string>();
+    const db = { getKV: (k: string) => kv.get(k), setKV: (k: string, v: string) => { kv.set(k, v); } };
+    const baseMarket = new InMemoryMarketDataProvider(new Map([
+      ["ETH-USD:1h", [{ timestamp: 400, open: 20, high: 21, low: 19, close: 20 }]],
+    ]));
+    const market = {
+      name: "mixed-provider",
+      getCandles: vi.fn(async (request) => {
+        if (request.symbol === "BTC-USD") throw new Error("provider unavailable");
+        return baseMarket.getCandles(request);
+      }),
+    };
+    const tick = vi.fn(async () => {});
+    const task = createTraderPaperCycleTask(
+      { tick, snapshot: () => ({} as any) },
+      [{ symbol: "BTC-USD", timeframe: "1h" }, { symbol: "ETH-USD", timeframe: "1h" }],
+      market,
+      db,
+    );
+
+    const result = await task({} as any, {} as any);
+    expect(result.shouldWake).toBe(true);
+    expect(tick).toHaveBeenCalledTimes(1);
+    expect(kv.has("trader:last_candle:BTC-USD:1h")).toBe(false);
+    expect(kv.get("trader:last_candle:ETH-USD:1h")).toBe("400");
+  });
+
+  it("fails the whole cycle on corrupt checkpoint state", async () => {
+    const kv = new Map<string, string>([["trader:last_candle:BTC-USD:1h", "corrupt"]]);
+    const db = { getKV: (k: string) => kv.get(k), setKV: (k: string, v: string) => { kv.set(k, v); } };
+    const market = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1h", [{ timestamp: 500, open: 10, high: 11, low: 9, close: 10 }]],
+    ]));
+    const tick = vi.fn(async () => {});
+    const task = createTraderPaperCycleTask({ tick, snapshot: () => ({} as any) }, [{ symbol: "BTC-USD", timeframe: "1h" }], market, db);
+
+    await expect(task({} as any, {} as any)).rejects.toThrow(/Corrupt last-candle state/);
+    expect(tick).not.toHaveBeenCalled();
+  });
+
+  it("fails the whole cycle when a candle checkpoint cannot be persisted", async () => {
+    const kv = new Map<string, string>();
+    const db = {
+      getKV: (k: string) => kv.get(k),
+      setKV: (k: string, v: string) => {
+        if (k.startsWith("trader:last_candle:")) throw new Error("checkpoint persistence failed");
+        kv.set(k, v);
+      },
+    };
+    const market = new InMemoryMarketDataProvider(new Map([
+      ["BTC-USD:1h", [{ timestamp: 600, open: 10, high: 11, low: 9, close: 10 }]],
+    ]));
+    const tick = vi.fn(async () => {});
+    const task = createTraderPaperCycleTask({ tick, snapshot: () => ({} as any) }, [{ symbol: "BTC-USD", timeframe: "1h" }], market, db);
+
+    await expect(task({} as any, {} as any)).rejects.toThrow(/checkpoint persistence failed/);
+    expect(tick).not.toHaveBeenCalled();
   });
 });
