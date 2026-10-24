@@ -54,7 +54,11 @@ export async function runCryptoResearch(
     }, fetchFn);
 
     const quality = inspectCandleQuality(candles, intervalSeconds, 0);
-    if (!quality.valid) throw new Error(`Historical data quality failed for ${symbol}`);
+    if (!quality.valid) {
+      throw new Error(
+        `Historical data quality failed for ${symbol}: candles=${quality.candles}, missingIntervals=${quality.missingIntervals}, largestGapIntervals=${quality.largestGapIntervals}, duplicateTimestamps=${quality.duplicateTimestamps}, irregularIntervals=${quality.irregularIntervals}`,
+      );
+    }
 
     const comparisons = compareStrategies(
       candles,
