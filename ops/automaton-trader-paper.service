@@ -1,0 +1,23 @@
+[Unit]
+Description=Automaton Trader Paper Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=automaton-trader
+Group=automaton-trader
+WorkingDirectory=/opt/automaton-trader
+EnvironmentFile=/etc/automaton-trader/paper.env
+ExecStart=/usr/bin/node /opt/automaton-trader/dist/trading/paper-service-entrypoint.js
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/automaton-trader
+
+[Install]
+WantedBy=multi-user.target
