@@ -4,6 +4,7 @@ export interface BacktestConfig {
   initialCapital: number;
   feeRate: number;
   allocationFraction: number;
+  slippageRate?: number;
 }
 
 export interface BacktestMetrics {
@@ -27,6 +28,10 @@ function validateBacktestInputs(candles: readonly Candle[], config: BacktestConf
   }
   if (!Number.isFinite(config.allocationFraction) || config.allocationFraction < 0 || config.allocationFraction > 1) {
     throw new Error("allocationFraction must be finite and in [0, 1]");
+  }
+  const slippageRate = config.slippageRate ?? 0;
+  if (!Number.isFinite(slippageRate) || slippageRate < 0 || slippageRate >= 1) {
+    throw new Error("slippageRate must be finite and in [0, 1)");
   }
 
   let previousTimestamp = Number.NEGATIVE_INFINITY;
@@ -60,11 +65,13 @@ export function backtest(
   let winningTrades = 0;
   let losingTrades = 0;
   const tradeStartIndex = evaluation.tradeStartIndex ?? 0;
+  const slippageRate = config.slippageRate ?? 0;
   if (!Number.isInteger(tradeStartIndex) || tradeStartIndex < 0 || tradeStartIndex > candles.length) throw new Error("Invalid tradeStartIndex");
 
   // A signal is only known after its candle closes. Execute that decision at
   // the next candle's open so the backtest cannot trade using a close price it
-  // only learned at the end of the same candle.
+  // only learned at the end of the same candle. Slippage is always adverse:
+  // buys fill above the open and sells fill below it.
   for (let index = 1; index < candles.length; index += 1) {
     const candle = candles[index];
     const signalIndex = index - 1;
@@ -75,11 +82,13 @@ export function backtest(
       const budget = cash * config.allocationFraction;
       const fee = budget * config.feeRate;
       const spendable = budget - fee;
-      quantity = spendable / candle.open;
+      const fillPrice = candle.open * (1 + slippageRate);
+      quantity = spendable / fillPrice;
       cash -= budget;
       entryCost = budget;
     } else if (signal === "sell" && quantity > 0) {
-      const gross = quantity * candle.open;
+      const fillPrice = candle.open * (1 - slippageRate);
+      const gross = quantity * fillPrice;
       const proceeds = gross * (1 - config.feeRate);
       const pnl = proceeds - entryCost;
       cash += proceeds;
