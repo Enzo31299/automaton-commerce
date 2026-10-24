@@ -9,6 +9,8 @@ import { evaluatePaperTradingEligibility, type PaperTradingDecision, type PaperT
 import type { BacktestConfig } from "./backtest.js";
 
 const RESEARCH_INTERVAL_SECONDS = { "1h": 3600, "1d": 86400 } as const;
+const MAX_RESEARCH_MISSING_INTERVALS = 5;
+const MAX_RESEARCH_SINGLE_GAP_INTERVALS = 5;
 export type CryptoResearchTimeframe = keyof typeof RESEARCH_INTERVAL_SECONDS;
 
 export interface CryptoResearchRunnerConfig {
@@ -53,8 +55,8 @@ export async function runCryptoResearch(
       end: config.end,
     }, fetchFn);
 
-    const quality = inspectCandleQuality(candles, intervalSeconds, 0);
-    if (!quality.valid) {
+    const quality = inspectCandleQuality(candles, intervalSeconds, MAX_RESEARCH_MISSING_INTERVALS);
+    if (!quality.valid || quality.largestGapIntervals > MAX_RESEARCH_SINGLE_GAP_INTERVALS) {
       throw new Error(
         `Historical data quality failed for ${symbol}: candles=${quality.candles}, missingIntervals=${quality.missingIntervals}, largestGapIntervals=${quality.largestGapIntervals}, duplicateTimestamps=${quality.duplicateTimestamps}, irregularIntervals=${quality.irregularIntervals}`,
       );
