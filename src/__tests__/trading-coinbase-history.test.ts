@@ -68,4 +68,18 @@ describe("Coinbase historical downloader", () => {
     )).rejects.toThrow(/epoch seconds/);
     expect(calls).toBe(0);
   });
+
+  it("rejects millisecond timestamps before making a request", async () => {
+    let calls = 0;
+    const fetchFn = async () => {
+      calls += 1;
+      return { ok: true, status: 200, json: async () => [] };
+    };
+    const nowMs = Date.now();
+    await expect(downloadCoinbaseHistory(
+      { symbol: "BTC-USD", timeframe: "1h", start: nowMs - 3_600_000, end: nowMs },
+      fetchFn as any,
+    )).rejects.toThrow(/epoch seconds/);
+    expect(calls).toBe(0);
+  });
 });
