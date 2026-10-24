@@ -45,6 +45,8 @@
     "trader:research": "tsx src/trading/research-cli.ts",
     "trader:paper": "tsx src/trading/paper-service-entrypoint.ts",
     "trader:paper:built": "node dist/trading/paper-service-entrypoint.js",
+    "trader:health": "tsx src/trading/health-cli.ts",
+    "trader:health:built": "node dist/trading/health-cli.js",
     "test:coverage": "vitest run --coverage",
     "test:security": "vitest run -t 'security|injection|policy'",
     "test:financial": "vitest run -t 'financial|spend|treasury'",
