@@ -28,7 +28,7 @@ describe("paper service loop", () => {
     const task = vi.fn(async () => ({ shouldWake: true, failedMarkets: 3, totalMarkets: 3, message: "all markets unavailable" }));
     const sleep = vi.fn(async () => {});
     await expect(createPaperServiceLoop(task, 60_000, sleep, 3).run())
-      .rejects.toThrow(/failed all 3 markets for 3 consecutive cycles/);
+      .rejects.toThrow("Paper service failed all markets for 3 consecutive cycles");
     expect(task).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenCalledTimes(2);
   });
