@@ -13,10 +13,15 @@ ExecStart=/usr/bin/node /opt/automaton-trader/dist/trading/paper-service-entrypo
 Restart=on-failure
 RestartSec=10
 TimeoutStopSec=30
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
 ReadWritePaths=/var/lib/automaton-trader
 
 [Install]
