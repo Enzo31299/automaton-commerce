@@ -1,15 +1,34 @@
 import type { KeyValueDatabase } from "./sqlite-journal.js";
 import type { CryptoResearchMarketResult } from "./crypto-research-runner.js";
+import type { PaperResearchPolicy } from "./research-policy.js";
 
 export const MAX_RESEARCH_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface StoredResearchRun {
   createdAt: string;
+  policy: PaperResearchPolicy;
   results: CryptoResearchMarketResult[];
 }
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function isPolicy(value: unknown): value is PaperResearchPolicy {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const policy = value as Record<string, unknown>;
+  return policy.schemaVersion === 1
+    && Array.isArray(policy.symbols) && policy.symbols.length > 0
+    && policy.symbols.every((symbol) => typeof symbol === "string" && symbol.trim().length > 0)
+    && new Set(policy.symbols as string[]).size === policy.symbols.length
+    && policy.timeframe === "1h"
+    && policy.strategy === "momentum-20-2"
+    && isFiniteNumber(policy.feeRate) && (policy.feeRate as number) > 0 && (policy.feeRate as number) < 1
+    && isFiniteNumber(policy.slippageRate) && (policy.slippageRate as number) > 0 && (policy.slippageRate as number) < 1
+    && isFiniteNumber(policy.allocationFraction) && (policy.allocationFraction as number) > 0 && (policy.allocationFraction as number) <= 1
+    && isFiniteNumber(policy.initialCapital) && (policy.initialCapital as number) > 0
+    && Number.isSafeInteger(policy.trainSize) && (policy.trainSize as number) > 0
+    && Number.isSafeInteger(policy.testSize) && (policy.testSize as number) > 0;
 }
 
 function isDecision(value: unknown): boolean {
@@ -46,7 +65,7 @@ function isMarketResult(value: unknown): value is CryptoResearchMarketResult {
 function validateRun(value: unknown): StoredResearchRun {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Stored research run is invalid");
   const run = value as Record<string, unknown>;
-  if (typeof run.createdAt !== "string" || !Number.isFinite(Date.parse(run.createdAt))) {
+  if (typeof run.createdAt !== "string" || !Number.isFinite(Date.parse(run.createdAt)) || !isPolicy(run.policy)) {
     throw new Error("Stored research run is invalid");
   }
   if (!Array.isArray(run.results) || run.results.length === 0 || !run.results.every(isMarketResult)) {
@@ -54,15 +73,19 @@ function validateRun(value: unknown): StoredResearchRun {
   }
   const symbols = run.results.map((result) => result.symbol.trim());
   if (new Set(symbols).size !== symbols.length) throw new Error("Stored research run is invalid");
+  if (symbols.length !== run.policy.symbols.length || !run.policy.symbols.every((symbol) => symbols.includes(symbol))) {
+    throw new Error("Stored research run policy does not match research results");
+  }
   return run as unknown as StoredResearchRun;
 }
 
 export function saveResearchRun(
   db: KeyValueDatabase,
   results: CryptoResearchMarketResult[],
+  policy: PaperResearchPolicy,
   createdAt = new Date().toISOString(),
 ): StoredResearchRun {
-  const run = validateRun({ createdAt, results });
+  const run = validateRun({ createdAt, policy, results });
   db.setKV("trader:research:last", JSON.stringify(run));
   return run;
 }
