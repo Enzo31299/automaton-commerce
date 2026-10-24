@@ -1,5 +1,6 @@
 import { createDatabase } from "../state/database.js";
 import { runCryptoResearch } from "./crypto-research-runner.js";
+import { createPaperResearchPolicy } from "./research-policy.js";
 import { saveResearchRun } from "./research-store.js";
 import { createHourlyResearchWindow } from "./research-window.js";
 
@@ -12,19 +13,20 @@ function requiredPath(env: NodeJS.ProcessEnv): string {
 async function main(): Promise<void> {
   const dbPath = requiredPath(process.env);
   const { start, end } = createHourlyResearchWindow(Date.now());
+  const policy = createPaperResearchPolicy();
 
   const results = await runCryptoResearch({
-    symbols: ["BTC-USD", "ETH-USD", "SOL-USD"],
-    timeframe: "1h",
+    symbols: policy.symbols,
+    timeframe: policy.timeframe,
     start,
     end,
-    trainSize: 24 * 30,
-    testSize: 24 * 14,
+    trainSize: policy.trainSize,
+    testSize: policy.testSize,
     backtest: {
-      initialCapital: 150,
-      feeRate: 0.001,
-      slippageRate: 0.0005,
-      allocationFraction: 0.25,
+      initialCapital: policy.initialCapital,
+      feeRate: policy.feeRate,
+      slippageRate: policy.slippageRate,
+      allocationFraction: policy.allocationFraction,
     },
     gate: {
       minWindows: 4,
@@ -40,7 +42,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({
       event: "trader_research_complete",
       mode: "paper",
-      timeframe: "1h",
+      policy,
       start: new Date(start * 1000).toISOString(),
       end: new Date(end * 1000).toISOString(),
       createdAt: stored.createdAt,
