@@ -46,16 +46,27 @@ export function createPaperTraderRuntime(
 
   return {
     async tick(request: MarketRequest, prefetchedSeries?: MarketSeries): Promise<void> {
+      let heartbeatError: unknown;
       try {
         await runTraderHeartbeat(loop, journal, request, strategy.name, Date.now(), prefetchedSeries);
         memory.observe(await journal.recent(config.journalLimit ?? 1000));
-        db.setKV("trader:last_tick", new Date().toISOString());
-      } finally {
-        // Paper execution mutates the in-memory session before journal writes.
-        // Persist even when a later journal/memory/checkpoint write fails so a
-        // restart cannot silently lose an already-simulated fill.
-        portfolioStore.save(session.snapshot());
+      } catch (error) {
+        heartbeatError = error;
       }
+
+      try {
+        // Paper execution mutates the in-memory session before journal writes.
+        // Persist before publishing last_tick so a successful tick always has
+        // durable portfolio state. On heartbeat failure, still attempt to save
+        // any already-simulated fill without masking the original error.
+        portfolioStore.save(session.snapshot());
+      } catch (persistenceError) {
+        if (heartbeatError !== undefined) throw heartbeatError;
+        throw persistenceError;
+      }
+
+      if (heartbeatError !== undefined) throw heartbeatError;
+      db.setKV("trader:last_tick", new Date().toISOString());
     },
     snapshot: () => session.snapshot(),
   };
