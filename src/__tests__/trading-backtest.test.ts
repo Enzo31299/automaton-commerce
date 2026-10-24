@@ -53,12 +53,28 @@ describe("trading research", () => {
     expect(result.trades).toBe(0);
   });
 
-  it("rejects invalid capital, fees, allocation, and evaluation boundaries", () => {
+  it("applies adverse slippage to next-open fills", () => {
+    const sample: Candle[] = [
+      { timestamp: 0, open: 100, high: 100, low: 100, close: 100 },
+      { timestamp: 1, open: 100, high: 100, low: 100, close: 100 },
+    ];
+    const buyImmediately: Strategy = { signal: () => "buy" };
+    const withoutSlippage = backtest(sample, buyImmediately, { initialCapital: 100, feeRate: 0, allocationFraction: 1 });
+    const withSlippage = backtest(sample, buyImmediately, { initialCapital: 100, feeRate: 0, allocationFraction: 1, slippageRate: 0.01 });
+
+    expect(withoutSlippage.finalEquity).toBe(100);
+    expect(withSlippage.finalEquity).toBeCloseTo(100 / 1.01, 8);
+    expect(withSlippage.finalEquity).toBeLessThan(withoutSlippage.finalEquity);
+  });
+
+  it("rejects invalid capital, fees, allocation, slippage, and evaluation boundaries", () => {
     const strategy = new MovingAverageCrossStrategy(2, 3);
     const sample = candles([10, 11, 12]);
     expect(() => backtest(sample, strategy, { ...config, initialCapital: 0 })).toThrow(/initialCapital/);
     expect(() => backtest(sample, strategy, { ...config, feeRate: 1 })).toThrow(/feeRate/);
     expect(() => backtest(sample, strategy, { ...config, allocationFraction: 1.01 })).toThrow(/allocationFraction/);
+    expect(() => backtest(sample, strategy, { ...config, slippageRate: -0.01 })).toThrow(/slippageRate/);
+    expect(() => backtest(sample, strategy, { ...config, slippageRate: Number.NaN })).toThrow(/slippageRate/);
     expect(() => backtest(sample, strategy, config, { tradeStartIndex: 1.5 })).toThrow(/tradeStartIndex/);
   });
 
