@@ -6,6 +6,10 @@ function sameSymbols(actual: readonly string[], expected: readonly string[]): bo
   return actual.length === expected.length && expected.every((symbol) => actual.includes(symbol));
 }
 
+function nearlyEqual(actual: number, expected: number): boolean {
+  return Math.abs(actual - expected) <= Number.EPSILON * Math.max(1, Math.abs(actual), Math.abs(expected));
+}
+
 export function assertResearchPolicyCompatible(
   policy: PaperResearchPolicy,
   config: PaperServiceConfig,
@@ -16,4 +20,9 @@ export function assertResearchPolicyCompatible(
   if (policy.feeRate !== config.execution.feeRate) throw new Error("Persisted research fee rate is incompatible with paper service");
   if (policy.slippageRate !== config.execution.slippageRate) throw new Error("Persisted research slippage rate is incompatible with paper service");
   if (policy.initialCapital !== config.initialEquity) throw new Error("Persisted research capital is incompatible with paper service");
+
+  const runtimeAllocationFraction = config.riskLimits.maxPositionValue / config.initialEquity;
+  if (!Number.isFinite(runtimeAllocationFraction) || !nearlyEqual(policy.allocationFraction, runtimeAllocationFraction)) {
+    throw new Error("Persisted research allocation is incompatible with paper service");
+  }
 }
