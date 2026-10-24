@@ -11,6 +11,7 @@ export interface PaperServiceConfig {
   initialEquity: number;
   quantity: number;
   pollIntervalMs: number;
+  maxConsecutiveTotalFailures: number;
   requests: MarketRequest[];
   riskLimits: RiskLimits;
   execution: Required<PaperExecutionConfig>;
@@ -27,12 +28,16 @@ export function createPaperServiceConfig(env: NodeJS.ProcessEnv = process.env): 
   const initialEquity = Number(env.TRADER_INITIAL_EQUITY ?? "150");
   const quantity = Number(env.TRADER_QUANTITY ?? "0.001");
   const pollIntervalMs = Number(env.TRADER_POLL_INTERVAL_MS ?? "60000");
+  const maxConsecutiveTotalFailures = Number(env.TRADER_MAX_CONSECUTIVE_TOTAL_FAILURES ?? "6");
   const feeRate = Number(env.TRADER_FEE_RATE ?? "0.001");
   const slippageRate = Number(env.TRADER_SLIPPAGE_RATE ?? "0.0005");
   if (!positiveFinite(initialEquity)) throw new Error("TRADER_INITIAL_EQUITY must be positive and finite");
   if (!positiveFinite(quantity)) throw new Error("TRADER_QUANTITY must be positive and finite");
   if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 10_000) {
     throw new Error("TRADER_POLL_INTERVAL_MS must be a safe integer >= 10000");
+  }
+  if (!Number.isSafeInteger(maxConsecutiveTotalFailures) || maxConsecutiveTotalFailures < 1) {
+    throw new Error("TRADER_MAX_CONSECUTIVE_TOTAL_FAILURES must be a positive safe integer");
   }
   if (!positiveFinite(feeRate) || feeRate >= 1) throw new Error("TRADER_FEE_RATE must be finite and in (0, 1)");
   if (!positiveFinite(slippageRate) || slippageRate >= 1) {
@@ -56,6 +61,7 @@ export function createPaperServiceConfig(env: NodeJS.ProcessEnv = process.env): 
     initialEquity,
     quantity,
     pollIntervalMs,
+    maxConsecutiveTotalFailures,
     requests: allowedSymbols.map((symbol) => ({ symbol, timeframe: PAPER_SERVICE_TIMEFRAME, limit: 300 })),
     riskLimits: { maxPositionValue, maxRiskPerTrade, maxDailyLoss, maxOpenPositions, allowedSymbols },
     execution: { feeRate, slippageRate },
