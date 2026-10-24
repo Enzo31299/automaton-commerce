@@ -62,20 +62,24 @@ export function backtest(
   const tradeStartIndex = evaluation.tradeStartIndex ?? 0;
   if (!Number.isInteger(tradeStartIndex) || tradeStartIndex < 0 || tradeStartIndex > candles.length) throw new Error("Invalid tradeStartIndex");
 
-  for (let index = 0; index < candles.length; index += 1) {
+  // A signal is only known after its candle closes. Execute that decision at
+  // the next candle's open so the backtest cannot trade using a close price it
+  // only learned at the end of the same candle.
+  for (let index = 1; index < candles.length; index += 1) {
     const candle = candles[index];
-    const signal = strategy.signal(candles.slice(0, index + 1));
+    const signalIndex = index - 1;
+    const signal = strategy.signal(candles.slice(0, signalIndex + 1));
     if (index < tradeStartIndex) continue;
 
     if (signal === "buy" && quantity === 0) {
       const budget = cash * config.allocationFraction;
       const fee = budget * config.feeRate;
       const spendable = budget - fee;
-      quantity = spendable / candle.close;
+      quantity = spendable / candle.open;
       cash -= budget;
       entryCost = budget;
     } else if (signal === "sell" && quantity > 0) {
-      const gross = quantity * candle.close;
+      const gross = quantity * candle.open;
       const proceeds = gross * (1 - config.feeRate);
       const pnl = proceeds - entryCost;
       cash += proceeds;
