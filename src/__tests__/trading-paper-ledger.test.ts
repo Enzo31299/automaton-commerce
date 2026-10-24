@@ -43,4 +43,30 @@ describe("paper portfolio ledger", () => {
     expect(await session.submit({ symbol: "BTC-USD", side: "sell", quantity: 0.5, price: 100 })).not.toBeNull();
     expect(session.snapshot().openPositions).toBe(0);
   });
+
+  it("reconciles scaled entries, fees and partial exits when the position is flat", async () => {
+    const execution = new PaperExecutionAdapter({ feeRate: 0.01, slippageRate: 0 });
+    const session = new PaperTradingSession(
+      eligible,
+      200,
+      new TradingRiskEngine({ ...limits, maxPositionValue: 200, maxRiskPerTrade: 50 }),
+      execution,
+    );
+
+    await session.submit({ symbol: "BTC-USD", side: "buy", quantity: 0.5, price: 100 });
+    await session.submit({ symbol: "BTC-USD", side: "buy", quantity: 0.5, price: 120 });
+    expect(session.snapshot().positions["BTC-USD"]?.averageEntryPrice).toBeCloseTo(111.1, 10);
+
+    await session.submit({ symbol: "BTC-USD", side: "sell", quantity: 0.4, price: 130 });
+    const afterPartial = session.snapshot();
+    expect(afterPartial.positions["BTC-USD"]?.quantity).toBeCloseTo(0.6, 10);
+    expect(afterPartial.realizedPnl).toBeCloseTo(7.03, 10);
+
+    await session.submit({ symbol: "BTC-USD", side: "sell", quantity: 0.6, price: 90 });
+    const flat = session.snapshot();
+    expect(flat.positions["BTC-USD"]).toBeUndefined();
+    expect(flat.openPositions).toBe(0);
+    expect(flat.equity).toBeCloseTo(flat.cash, 10);
+    expect(flat.realizedPnl).toBeCloseTo(flat.cash - flat.initialEquity, 10);
+  });
 });
