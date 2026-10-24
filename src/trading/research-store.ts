@@ -1,6 +1,8 @@
 import type { KeyValueDatabase } from "./sqlite-journal.js";
 import type { CryptoResearchMarketResult } from "./crypto-research-runner.js";
 
+export const MAX_RESEARCH_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export interface StoredResearchRun {
   createdAt: string;
   results: CryptoResearchMarketResult[];
@@ -75,4 +77,21 @@ export function loadResearchRun(db: KeyValueDatabase): StoredResearchRun | undef
     throw new Error("Stored research run is invalid");
   }
   return validateRun(parsed);
+}
+
+export function requireFreshResearchRun(
+  db: KeyValueDatabase,
+  now = Date.now(),
+  maxAgeMs = MAX_RESEARCH_AGE_MS,
+): StoredResearchRun {
+  if (!Number.isFinite(now) || !Number.isSafeInteger(maxAgeMs) || maxAgeMs < 1_000) {
+    throw new Error("Research freshness configuration is invalid");
+  }
+  const run = loadResearchRun(db);
+  if (!run) throw new Error("Paper service requires persisted out-of-sample research");
+  const createdAt = Date.parse(run.createdAt);
+  const ageMs = now - createdAt;
+  if (ageMs < 0) throw new Error("Persisted out-of-sample research is dated in the future");
+  if (ageMs > maxAgeMs) throw new Error("Persisted out-of-sample research is stale");
+  return run;
 }
