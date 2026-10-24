@@ -60,7 +60,9 @@ describe("paper portfolio ledger", () => {
     await session.submit({ symbol: "BTC-USD", side: "sell", quantity: 0.4, price: 130 });
     const afterPartial = session.snapshot();
     expect(afterPartial.positions["BTC-USD"]?.quantity).toBeCloseTo(0.6, 10);
-    expect(afterPartial.realizedPnl).toBeCloseTo(7.03, 10);
+    // Cost basis includes the 1% entry fees: 50.5 + 60.6 = 111.1 total.
+    // Selling 0.4 at 130 realizes 52 gross less 0.52 exit fee, against 44.44 cost basis.
+    expect(afterPartial.realizedPnl).toBeCloseTo(7.04, 10);
 
     await session.submit({ symbol: "BTC-USD", side: "sell", quantity: 0.6, price: 90 });
     const flat = session.snapshot();
