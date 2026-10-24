@@ -38,7 +38,7 @@ async function main(): Promise<void> {
 
   const db = createDatabase(dbPath);
   try {
-    const stored = saveResearchRun(db, results);
+    const stored = saveResearchRun(db, results, policy);
     console.log(JSON.stringify({
       event: "trader_research_complete",
       mode: "paper",
