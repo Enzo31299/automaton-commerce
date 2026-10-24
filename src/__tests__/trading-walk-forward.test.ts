@@ -9,6 +9,9 @@ function series(length: number): Candle[] {
   });
 }
 
+const strategyFactory = () => new MovingAverageCrossStrategy(2, 4);
+const config = { initialCapital: 150, feeRate: 0, allocationFraction: 0.25 };
+
 describe("walk-forward research", () => {
   it("evaluates only unseen test windows", () => {
     const result = walkForward(
@@ -28,11 +31,12 @@ describe("walk-forward research", () => {
     expect(result.worstTestDrawdownPct).toBeGreaterThanOrEqual(0);
   });
 
-  it("rejects invalid window sizes", () => {
-    expect(() => walkForward(series(20), () => new MovingAverageCrossStrategy(2, 4), {
-      initialCapital: 150,
-      feeRate: 0,
-      allocationFraction: 0.25,
-    }, 0, 5)).toThrow();
+  it("rejects non-positive, fractional, non-finite, and unsafe window sizes", () => {
+    const sample = series(20);
+    expect(() => walkForward(sample, strategyFactory, config, 0, 5)).toThrow(/positive safe integers/);
+    expect(() => walkForward(sample, strategyFactory, config, 5.5, 5)).toThrow(/positive safe integers/);
+    expect(() => walkForward(sample, strategyFactory, config, 5, Number.NaN)).toThrow(/positive safe integers/);
+    expect(() => walkForward(sample, strategyFactory, config, 5, Number.POSITIVE_INFINITY)).toThrow(/positive safe integers/);
+    expect(() => walkForward(sample, strategyFactory, config, Number.MAX_SAFE_INTEGER + 1, 5)).toThrow(/positive safe integers/);
   });
 });
