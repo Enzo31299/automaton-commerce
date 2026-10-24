@@ -12,6 +12,15 @@ const limits = {
   allowedSymbols: ["BTC-USD"],
 };
 
+function createSession(initialEquity = 150) {
+  return new PaperTradingSession(
+    { eligible: true, reasons: [] },
+    initialEquity,
+    new TradingRiskEngine(limits),
+    new PaperExecutionAdapter(),
+  );
+}
+
 describe("paper trading session", () => {
   it("cannot start when research gate rejects a strategy", () => {
     expect(() => new PaperTradingSession(
@@ -22,13 +31,14 @@ describe("paper trading session", () => {
     )).toThrow(/Research gate blocked/);
   });
 
+  it("rejects non-finite or non-positive initial equity", () => {
+    for (const initialEquity of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => createSession(initialEquity)).toThrow(/Initial equity/);
+    }
+  });
+
   it("routes simulated trades through the hard risk engine", async () => {
-    const session = new PaperTradingSession(
-      { eligible: true, reasons: [] },
-      150,
-      new TradingRiskEngine(limits),
-      new PaperExecutionAdapter(),
-    );
+    const session = createSession();
     const blocked = await session.submit({ symbol: "BTC-USD", side: "buy", quantity: 1, price: 100 });
     expect(blocked).toBeNull();
     expect(session.snapshot().blockedTrades).toBe(1);
@@ -71,12 +81,7 @@ describe("paper trading session", () => {
   });
 
   it("ignores non-positive mark prices instead of corrupting equity", async () => {
-    const session = new PaperTradingSession(
-      { eligible: true, reasons: [] },
-      150,
-      new TradingRiskEngine(limits),
-      new PaperExecutionAdapter(),
-    );
+    const session = createSession();
     await session.submit({ symbol: "BTC-USD", side: "buy", quantity: 0.25, price: 100 });
     const before = session.snapshot().equity;
     session.markToMarket({ "BTC-USD": -1 });
@@ -84,15 +89,17 @@ describe("paper trading session", () => {
   });
 
   it("tracks simulated equity and daily loss", () => {
-    const session = new PaperTradingSession(
-      { eligible: true, reasons: [] },
-      150,
-      new TradingRiskEngine(limits),
-      new PaperExecutionAdapter(),
-    );
+    const session = createSession();
     session.recordPnl(-3);
     expect(session.snapshot()).toMatchObject({ equity: 147, dailyPnl: -3 });
     session.resetDailyPnl();
     expect(session.snapshot().dailyPnl).toBe(0);
+  });
+
+  it("rejects manual pnl adjustments that would make capital negative without mutation", () => {
+    const session = createSession();
+    const before = session.snapshot();
+    expect(() => session.recordPnl(-151)).toThrow(/capital negative/);
+    expect(session.snapshot()).toEqual(before);
   });
 });
