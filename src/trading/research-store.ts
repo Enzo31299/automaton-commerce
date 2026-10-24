@@ -14,6 +14,15 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function isGate(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const gate = value as Record<string, unknown>;
+  return Number.isSafeInteger(gate.minWindows) && (gate.minWindows as number) > 0
+    && isFiniteNumber(gate.minProfitableWindowRatio) && (gate.minProfitableWindowRatio as number) >= 0 && (gate.minProfitableWindowRatio as number) <= 1
+    && isFiniteNumber(gate.maxDrawdownPct) && (gate.maxDrawdownPct as number) >= 0
+    && isFiniteNumber(gate.minAverageTestReturnPct);
+}
+
 function isPolicy(value: unknown): value is PaperResearchPolicy {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const policy = value as Record<string, unknown>;
@@ -28,7 +37,8 @@ function isPolicy(value: unknown): value is PaperResearchPolicy {
     && isFiniteNumber(policy.allocationFraction) && (policy.allocationFraction as number) > 0 && (policy.allocationFraction as number) <= 1
     && isFiniteNumber(policy.initialCapital) && (policy.initialCapital as number) > 0
     && Number.isSafeInteger(policy.trainSize) && (policy.trainSize as number) > 0
-    && Number.isSafeInteger(policy.testSize) && (policy.testSize as number) > 0;
+    && Number.isSafeInteger(policy.testSize) && (policy.testSize as number) > 0
+    && isGate(policy.gate);
 }
 
 function isDecision(value: unknown): boolean {
