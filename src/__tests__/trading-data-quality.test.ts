@@ -7,14 +7,23 @@ describe("historical candle quality", () => {
   it("accepts a continuous series", () => {
     expect(inspectCandleQuality([c(0), c(60), c(120)], 60)).toMatchObject({ valid: true, missingIntervals: 0, irregularIntervals: 0 });
   });
-  it("detects missing intervals", () => {
-    expect(inspectCandleQuality([c(0), c(180)], 60)).toMatchObject({ valid: false, missingIntervals: 2, largestGapIntervals: 2, irregularIntervals: 1 });
+  it("detects aligned missing intervals without classifying them as irregular timing", () => {
+    expect(inspectCandleQuality([c(0), c(180)], 60)).toMatchObject({ valid: false, missingIntervals: 2, largestGapIntervals: 2, irregularIntervals: 0 });
+  });
+  it("honors the configured tolerance for aligned missing candles", () => {
+    expect(inspectCandleQuality([c(0), c(180), c(240)], 60, 2)).toMatchObject({
+      valid: true,
+      missingIntervals: 2,
+      largestGapIntervals: 2,
+      irregularIntervals: 0,
+    });
+    expect(inspectCandleQuality([c(0), c(180)], 60, 1).valid).toBe(false);
   });
   it("rejects duplicate timestamps", () => {
     expect(inspectCandleQuality([c(0), c(0)], 60).valid).toBe(false);
   });
   it("rejects partial irregular intervals without inventing a missing candle", () => {
-    expect(inspectCandleQuality([c(0), c(89)], 60)).toMatchObject({
+    expect(inspectCandleQuality([c(0), c(89)], 60, 10)).toMatchObject({
       valid: false,
       missingIntervals: 0,
       largestGapIntervals: 0,
