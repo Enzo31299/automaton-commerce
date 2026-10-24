@@ -5,7 +5,7 @@ import { MomentumStrategy } from "./momentum-strategy.js";
 import { createPaperServiceConfig, PAPER_SERVICE_STRATEGY, PAPER_SERVICE_SYMBOLS } from "./paper-service-config.js";
 import { createPaperServiceLoop } from "./paper-service.js";
 import { createPaperTraderRuntime } from "./runtime.js";
-import { loadResearchRun } from "./research-store.js";
+import { requireFreshResearchRun } from "./research-store.js";
 import { evaluateStrategyAcrossMarkets } from "./research-portfolio-gate.js";
 
 async function main(): Promise<void> {
@@ -23,11 +23,10 @@ async function main(): Promise<void> {
   process.once("SIGINT", shutdown);
 
   try {
-    // Deployment is fail-closed: paper execution is disabled until persisted
-    // out-of-sample research explicitly clears the exact configured strategy on
-    // every required market. No live execution adapter is constructed here.
-    const research = loadResearchRun(db);
-    if (!research) throw new Error("Paper service requires persisted out-of-sample research");
+    // Deployment is fail-closed: paper execution is disabled until recent
+    // persisted out-of-sample research explicitly clears the exact configured
+    // strategy on every required market. No live execution adapter exists here.
+    const research = requireFreshResearchRun(db);
 
     const eligibility = evaluateStrategyAcrossMarkets(PAPER_SERVICE_STRATEGY, research.results, {
       requiredMarkets: PAPER_SERVICE_SYMBOLS,
@@ -53,6 +52,7 @@ async function main(): Promise<void> {
       strategy: PAPER_SERVICE_STRATEGY,
       symbols: PAPER_SERVICE_SYMBOLS,
       timeframe: "1h",
+      researchCreatedAt: research.createdAt,
     }));
     await service.run(controller.signal);
   } finally {
