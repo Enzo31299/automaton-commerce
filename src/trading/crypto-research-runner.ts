@@ -8,9 +8,12 @@ import { buildResearchReport, type ResearchReportRow } from "./research-report.j
 import { evaluatePaperTradingEligibility, type PaperTradingDecision, type PaperTradingGate } from "./paper-trading-gate.js";
 import type { BacktestConfig } from "./backtest.js";
 
+const RESEARCH_INTERVAL_SECONDS = { "1h": 3600, "1d": 86400 } as const;
+export type CryptoResearchTimeframe = keyof typeof RESEARCH_INTERVAL_SECONDS;
+
 export interface CryptoResearchRunnerConfig {
   symbols: readonly string[];
-  timeframe: "1d";
+  timeframe: CryptoResearchTimeframe;
   start: number;
   end: number;
   trainSize: number;
@@ -40,6 +43,7 @@ export async function runCryptoResearch(
 ): Promise<CryptoResearchMarketResult[]> {
   validateResearchCosts(config.backtest);
 
+  const intervalSeconds = RESEARCH_INTERVAL_SECONDS[config.timeframe];
   const results: CryptoResearchMarketResult[] = [];
   for (const symbol of config.symbols) {
     const candles = await downloadCoinbaseHistory({
@@ -49,7 +53,7 @@ export async function runCryptoResearch(
       end: config.end,
     }, fetchFn);
 
-    const quality = inspectCandleQuality(candles, 86400, 0);
+    const quality = inspectCandleQuality(candles, intervalSeconds, 0);
     if (!quality.valid) throw new Error(`Historical data quality failed for ${symbol}`);
 
     const comparisons = compareStrategies(
