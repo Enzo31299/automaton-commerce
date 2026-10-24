@@ -18,12 +18,39 @@ export interface BacktestMetrics {
 
 export interface BacktestEvaluationRange { tradeStartIndex?: number; }
 
+function validateBacktestInputs(candles: readonly Candle[], config: BacktestConfig): void {
+  if (!Number.isFinite(config.initialCapital) || config.initialCapital <= 0) {
+    throw new Error("initialCapital must be finite and positive");
+  }
+  if (!Number.isFinite(config.feeRate) || config.feeRate < 0 || config.feeRate >= 1) {
+    throw new Error("feeRate must be finite and in [0, 1)");
+  }
+  if (!Number.isFinite(config.allocationFraction) || config.allocationFraction < 0 || config.allocationFraction > 1) {
+    throw new Error("allocationFraction must be finite and in [0, 1]");
+  }
+
+  let previousTimestamp = Number.NEGATIVE_INFINITY;
+  for (const candle of candles) {
+    const values = [candle.timestamp, candle.open, candle.high, candle.low, candle.close];
+    if (values.some((value) => !Number.isFinite(value))) throw new Error("Candles must contain only finite values");
+    if (candle.open <= 0 || candle.high <= 0 || candle.low <= 0 || candle.close <= 0) {
+      throw new Error("Candle prices must be positive");
+    }
+    if (candle.low > candle.high || candle.open < candle.low || candle.open > candle.high || candle.close < candle.low || candle.close > candle.high) {
+      throw new Error("Invalid OHLC candle");
+    }
+    if (candle.timestamp <= previousTimestamp) throw new Error("Candle timestamps must be strictly increasing");
+    previousTimestamp = candle.timestamp;
+  }
+}
+
 export function backtest(
   candles: readonly Candle[],
   strategy: Strategy,
   config: BacktestConfig,
   evaluation: BacktestEvaluationRange = {},
 ): BacktestMetrics {
+  validateBacktestInputs(candles, config);
   let cash = config.initialCapital;
   let quantity = 0;
   let entryCost = 0;
@@ -33,7 +60,7 @@ export function backtest(
   let winningTrades = 0;
   let losingTrades = 0;
   const tradeStartIndex = evaluation.tradeStartIndex ?? 0;
-  if (tradeStartIndex < 0 || tradeStartIndex > candles.length) throw new Error("Invalid tradeStartIndex");
+  if (!Number.isInteger(tradeStartIndex) || tradeStartIndex < 0 || tradeStartIndex > candles.length) throw new Error("Invalid tradeStartIndex");
 
   for (let index = 0; index < candles.length; index += 1) {
     const candle = candles[index];
