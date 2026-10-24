@@ -46,10 +46,16 @@ export function createPaperTraderRuntime(
 
   return {
     async tick(request: MarketRequest, prefetchedSeries?: MarketSeries): Promise<void> {
-      await runTraderHeartbeat(loop, journal, request, strategy.name, Date.now(), prefetchedSeries);
-      memory.observe(await journal.recent(config.journalLimit ?? 1000));
-      portfolioStore.save(session.snapshot());
-      db.setKV("trader:last_tick", new Date().toISOString());
+      try {
+        await runTraderHeartbeat(loop, journal, request, strategy.name, Date.now(), prefetchedSeries);
+        memory.observe(await journal.recent(config.journalLimit ?? 1000));
+        db.setKV("trader:last_tick", new Date().toISOString());
+      } finally {
+        // Paper execution mutates the in-memory session before journal writes.
+        // Persist even when a later journal/memory/checkpoint write fails so a
+        // restart cannot silently lose an already-simulated fill.
+        portfolioStore.save(session.snapshot());
+      }
     },
     snapshot: () => session.snapshot(),
   };
